@@ -74,3 +74,12 @@ yarn-debug.log*
 !/tmp/storage/
 !/tmp/storage/.keep
 /public/uploads
+
+# RSA key files — Jenga API signing keys (NEVER commit private keys)
+private_key.pem
+private_key_pkcs8.pem
+*_private_key.pem
+*.key.pem
+# public_key.pem is safe to commit but excluded here to avoid confusion
+public_key.pem
+

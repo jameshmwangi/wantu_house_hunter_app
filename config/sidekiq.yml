@@ -6,12 +6,10 @@
   - [active_storage_analysis, 1]
   - [active_storage_purge, 1]
 
-# Cron schedules (requires sidekiq-cron gem — add to Gemfile when ready for production)
-# Uncomment after running: bundle add sidekiq-cron
-#
-# :schedule:
-#   reconcile_pending_payments:
-#     cron: "*/5 * * * *"   # every 5 minutes
-#     class: ReconcilePendingPaymentsJob
-#     queue: reconciliation
-#     description: "Poll Jenga for stuck pending PaymentTransactions and resolve them"
+# Cron schedules — sidekiq-cron gem required (added to Gemfile)
+:schedule:
+  reconcile_pending_payments:
+    cron: "*/5 * * * *"   # every 5 minutes
+    class: ReconcilePendingPaymentsJob
+    queue: reconciliation
+    description: "Poll Jenga for stuck pending PaymentTransactions and resolve them"

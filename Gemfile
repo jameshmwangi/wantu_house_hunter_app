@@ -31,6 +31,7 @@ gem "devise", "~> 4.9"
 gem "cancancan", "~> 3.5"
 gem "rails_admin", "~> 3.0"
 gem "sidekiq"
+gem "sidekiq-cron", "~> 1.12"  # Cron scheduling for ReconcilePendingPaymentsJob
 gem "kaminari", "~> 1.2"
 gem "bootstrap", "~> 5.3"
 gem "sassc-rails"
