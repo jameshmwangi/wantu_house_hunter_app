@@ -35,6 +35,61 @@ class ViewingAppointment < ApplicationRecord
     AppointmentMailer.public_send(mailer_method, self).deliver_later
   end
 
+  # Real Jenga M-Pesa STK Push flow.
+  # Creates the escrow (if absent), initiates collection via the adapter,
+  # records a PaymentAttempt in the "processing" STK state, and returns it.
+  # The final outcome arrives asynchronously via the Jenga IPN callback.
+  #
+  # @param phone_number [String] normalised MSISDN (2547xxxxxxxx)
+  # @param callback_url [String] the registered Jenga IPN URL
+  # @return [PaymentAttempt]
+  def initiate_stk_payment!(phone_number:, callback_url:)
+    # Zero-amount: skip gateway, fund immediately (design doc §1.4)
+    if fee_amount.to_i == 0
+      escrow_transaction_or_create!.fund!
+      AppointmentMailer.new_booking(self).deliver_later
+      payment = payment_attempts.create!(
+        payment_method:    'mpesa',
+        outcome:           'success',
+        stk_status:        'completed',
+        provider_reference: "ZERO-#{SecureRandom.hex(6).upcase}"
+      )
+      return payment
+    end
+
+    escrow  = escrow_transaction_or_create!
+    adapter = PaymentGatewayAdapter.new
+    result  = adapter.initiate_collection(
+      escrow,
+      home_seeker:  home_seeker,
+      callback_url: callback_url
+    )
+
+    payment = payment_attempts.create!(
+      payment_method:    'mpesa',
+      outcome:           'pending',
+      stk_status:        'processing',
+      provider_reference: result[:provider_reference]
+    )
+
+    # Record the pending PaymentTransaction so the existing IPN + reconcile
+    # jobs can pick it up via provider_reference
+    escrow.payment_transactions.create!(
+      direction:          'collection',
+      provider:           result[:provider],
+      provider_channel:   'mpesa',
+      provider_reference: result[:provider_reference],
+      status:             'pending',
+      amount_cents:       escrow.amount_cents
+    )
+
+    payment
+  rescue PaymentGatewayAdapter::Error, JengaClient::JengaError => e
+    Rails.logger.error "[ViewingAppointment#initiate_stk_payment!] #{e.class}: #{e.message}"
+    raise
+  end
+
+  # Legacy simulation path — kept for tests and non-production environments.
   def process_payment!(payment_method:, simulation:)
     # Zero-amount (free) viewings skip the gateway entirely — design doc §1.4
     if fee_amount.to_i == 0

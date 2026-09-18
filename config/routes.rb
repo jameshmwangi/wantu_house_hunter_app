@@ -60,8 +60,12 @@ Rails.application.routes.draw do
   # Agent Public Profile
   get 'agents/:id', to: 'agents#show', as: :agent_profile
 
-  # Payment Attempts
-  resources :payment_attempts, only: [:new, :create]
+  # Payment Attempts — includes a status route for Turbo fallback polling
+  resources :payment_attempts, only: [:new, :create] do
+    member do
+      get :status
+    end
+  end
 
   namespace :api do
     namespace :v1 do

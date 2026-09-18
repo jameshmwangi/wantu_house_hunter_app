@@ -128,6 +128,10 @@ module Api
             payment_transaction.update!(status: "failed", raw_payload: safe_payload)
           end
         end
+
+        # Push the live status update to the browser tab that initiated this STK push.
+        # The PaymentAttempt links back via provider_reference.
+        broadcast_stk_status!(reference, success: success)
       end
 
       def confirm_payout!(reference)
@@ -155,6 +159,27 @@ module Api
             withdrawal.mark_failed!
           end
         end
+      end
+
+      # Looks up the PaymentAttempt for this provider_reference, updates its
+      # stk_status, and broadcasts a Turbo Stream replace to the open browser tab.
+      def broadcast_stk_status!(reference, success:)
+        payment_attempt = PaymentAttempt.find_by(provider_reference: reference)
+        return unless payment_attempt
+
+        new_stk_status = success ? 'completed' : 'failed'
+        new_outcome    = success ? 'success' : 'failed'
+        payment_attempt.update!(stk_status: new_stk_status, outcome: new_outcome)
+
+        Turbo::StreamsChannel.broadcast_replace_to(
+          payment_attempt,
+          target: "payment_status",
+          partial: "payment_attempts/status",
+          locals: { payment: payment_attempt }
+        )
+      rescue => e
+        # Non-fatal — the reconcile job will clean up if broadcast fails
+        Rails.logger.error "[PaymentsController#broadcast_stk_status!] #{e.class}: #{e.message}"
       end
 
       # Confirms this POST genuinely came from Jenga, using HTTP Basic Auth

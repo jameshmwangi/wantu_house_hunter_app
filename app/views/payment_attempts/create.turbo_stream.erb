@@ -1,0 +1,8 @@
+<%# Rendered immediately after the M-Pesa STK POST — before the IPN callback arrives.
+    Replaces #payment_status with the spinner/processing state so the user sees
+    live feedback without waiting for a page reload.
+    The turbo_stream_from inside _status.html.erb then keeps the connection open
+    so the final result (from the IPN broadcast) replaces it automatically. %>
+<%= turbo_stream.replace "payment_status" do %>
+  <%= render "payment_attempts/status", payment: @payment %>
+<% end %>

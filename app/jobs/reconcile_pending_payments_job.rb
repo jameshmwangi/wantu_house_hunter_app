@@ -61,12 +61,20 @@ class ReconcilePendingPaymentsJob < ApplicationJob
       when "SUCCESS"
         payment_transaction.update!(status: "success")
         escrow.fund!(provider_reference: payment_transaction.provider_reference) unless escrow.funded? || escrow.released?
+        broadcast_attempt_status!(payment_transaction, stk_status: "completed", outcome: "success")
         Rails.logger.info "[ReconcilePendingPaymentsJob] Funded escrow ##{escrow.id} via reconciliation"
       when "FAILED", "CANCELLED"
         payment_transaction.update!(status: "failed")
+        broadcast_attempt_status!(payment_transaction, stk_status: "failed", outcome: "failed")
         Rails.logger.info "[ReconcilePendingPaymentsJob] Marked collection ##{payment_transaction.id} failed via reconciliation"
       else
-        Rails.logger.info "[ReconcilePendingPaymentsJob] Collection ##{payment_transaction.id} still pending (status=#{status})"
+        # Still no final status from Jenga — mark timed_out if old enough
+        if payment_transaction.created_at < 90.seconds.ago
+          broadcast_attempt_status!(payment_transaction, stk_status: "timed_out", outcome: "failed")
+          Rails.logger.info "[ReconcilePendingPaymentsJob] Timed out collection ##{payment_transaction.id}"
+        else
+          Rails.logger.info "[ReconcilePendingPaymentsJob] Collection ##{payment_transaction.id} still pending (status=#{status})"
+        end
       end
     end
   end
@@ -89,5 +97,25 @@ class ReconcilePendingPaymentsJob < ApplicationJob
         Rails.logger.info "[ReconcilePendingPaymentsJob] Payout ##{payment_transaction.id} still pending (status=#{status})"
       end
     end
+  end
+
+  # Finds the PaymentAttempt linked to this PaymentTransaction by provider_reference,
+  # updates its stk_status and outcome, then pushes a Turbo Stream replace to any
+  # open browser tab subscribed to that record.
+  def broadcast_attempt_status!(payment_transaction, stk_status:, outcome:)
+    attempt = PaymentAttempt.find_by(provider_reference: payment_transaction.provider_reference)
+    return unless attempt
+    return if attempt.stk_status.in?(%w[completed timed_out]) # already resolved
+
+    attempt.update!(stk_status: stk_status, outcome: outcome)
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      attempt,
+      target:  "payment_status",
+      partial: "payment_attempts/status",
+      locals:  { payment: attempt }
+    )
+  rescue => e
+    Rails.logger.error "[ReconcilePendingPaymentsJob#broadcast_attempt_status!] #{e.class}: #{e.message}"
   end
 end
