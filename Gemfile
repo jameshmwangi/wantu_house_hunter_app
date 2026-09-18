@@ -78,3 +78,4 @@ end
 
 
 gem "faraday", "~> 2.7"  # HTTP client for Jenga API calls
+gem "json", "< 3.0"
