@@ -1,0 +1,10 @@
+<h2><%= t('mailers.payment_success.heading') %></h2>
+<p><%= t('mailers.payment_success.greeting', name: @seeker.full_name) %></p>
+<p><%= t('mailers.payment_success.body', title: @listing.title) %></p>
+<ul>
+  <li><%= t('viewing_appointments.fields.fee') %>: Ksh <%= number_with_delimiter(@appointment.fee_amount) %></li>
+  <li><%= t('mailers.payment_success.reference') %>: <%= @attempt.payment_reference %></li>
+  <li><%= t('mailers.payment_success.method') %>: <%= @attempt.payment_method.humanize %></li>
+  <li><%= t('viewing_appointments.fields.scheduled_at') %>: <%= @appointment.scheduled_at.in_time_zone('Nairobi').strftime('%d %B %Y at %I:%M %p EAT') %></li>
+</ul>
+<p><%= t('mailers.payment_success.footer') %></p>

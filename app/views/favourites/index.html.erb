@@ -1,0 +1,61 @@
+<% content_for :title, t('favourites.title') %>
+
+<section class="container py-4">
+  <h2 class="font-serif"><%= t('favourites.title') %> (<%= @favourites.total_count %> <%= t('favourites.saved') %>)</h2>
+
+  <% if @favourites.any? %>
+    <div class="row g-4 mt-2">
+      <% @favourites.each do |favourite| %>
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <div class="wantu-property-card" id="<%= dom_id(favourite) %>">
+            <%# Image %>
+            <% listing = favourite.listing %>
+            <div class="position-relative">
+              <% if listing.property_images.any? && listing.property_images.first.image.attached? %>
+                <%= image_tag listing.property_images.first.image,
+                    class: "wantu-property-card__img",
+                    alt: listing.title %>
+              <% else %>
+                <div class="wantu-property-card__img wantu-property-card__img--placeholder">
+                  <span><%= t('listings.no_image') %></span>
+                </div>
+              <% end %>
+              <span class="position-absolute fs-3" style="top:12px;right:16px;color:#ef4444;text-shadow: 0 2px 4px rgba(0,0,0,0.4);">&#9829;</span>
+            </div>
+
+            <div class="wantu-property-card__body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="wantu-property-card__price">
+                  Ksh <%= number_with_delimiter(listing.price) %><span class="wantu-property-card__period">/<%= listing.price_period %></span>
+                </div>
+                <span class="wantu-badge wantu-badge--<%= listing.need_type %>">
+                  <%= t("listings.need_type.#{listing.need_type}") %>
+                </span>
+              </div>
+
+              <div class="wantu-property-card__title"><%= listing.title %></div>
+              <div class="wantu-property-card__meta">
+                <%= listing.room_layout.humanize %> &nbsp; <%= listing.location.area_name %>
+              </div>
+
+              <div class="wantu-property-card__actions flex-column align-items-stretch mt-3">
+                <%= link_to t('listings.view_property'), listing_path(listing), class: "wantu-btn wantu-btn--primary text-center mb-2" %>
+                <%= button_to t('favourites.remove'),
+                    favourite_path(favourite),
+                    method: :delete,
+                    class: "btn btn-outline-secondary w-100" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <%= render "shared/pagination", collection: @favourites %>
+  <% else %>
+    <div class="text-center py-5">
+      <p><%= t('favourites.empty') %></p>
+      <%= link_to t('home.see_more'), listings_path, class: "wantu-btn wantu-btn--primary" %>
+    </div>
+  <% end %>
+</section>

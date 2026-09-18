@@ -1,0 +1,115 @@
+<% content_for :title, t('payout_accounts.title') %>
+
+<section class="wantu-dashboard-header">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="font-serif mb-1"><%= t('payout_accounts.title') %></h2>
+        <p class="text-muted mb-0"><%= t('payout_accounts.subtitle') %></p>
+      </div>
+      <%= link_to t('withdrawals.title'), dashboard_withdrawals_path, class: "wantu-btn wantu-btn--outline" %>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+  <div class="row">
+
+    <%# Add New Payout Account %>
+    <div class="col-md-5 mb-4">
+      <div class="card border-dark rounded-3 h-100">
+        <div class="card-body p-4">
+          <h5 class="fw-bold font-monospace mb-4"><%= t('payout_accounts.add_account') %></h5>
+
+          <%= form_with model: @new_payout_account, url: dashboard_payout_accounts_path, local: true do |f| %>
+            <% if @new_payout_account.errors.any? %>
+              <div class="alert alert-danger mb-3 small">
+                <% @new_payout_account.errors.full_messages.each do |msg| %>
+                  <div><%=msg%></div>
+                <% end %>
+              </div>
+            <% end %>
+
+            <div class="mb-3">
+              <label class="form-label fw-medium small"><%= t('payout_accounts.fields.country') %></label>
+              <%= f.select :country,
+                    [["🇰🇪 Kenya (KES)", "KE"], ["🇺🇬 Uganda (UGX)", "UG"]],
+                    { include_blank: t('payout_accounts.fields.select_country') },
+                    class: "form-select #{'is-invalid' if @new_payout_account.errors[:country].any?}",
+                    id: "payout_account_country" %>
+              <% if @new_payout_account.errors[:country].any? %>
+                <div class="invalid-feedback"><%= @new_payout_account.errors[:country].first %></div>
+              <% end %>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-medium small"><%= t('payout_accounts.fields.kind') %></label>
+              <%= f.select :kind,
+                    [["M-Pesa", "mpesa"], ["MTN MoMo", "momo"], ["Airtel Money", "airtel_money"], ["Bank Transfer", "bank"]],
+                    { include_blank: t('payout_accounts.fields.select_kind') },
+                    class: "form-select #{'is-invalid' if @new_payout_account.errors[:kind].any?}",
+                    id: "payout_account_kind" %>
+              <% if @new_payout_account.errors[:kind].any? %>
+                <div class="invalid-feedback"><%= @new_payout_account.errors[:kind].first %></div>
+              <% end %>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-medium small"><%= t('payout_accounts.fields.details') %></label>
+              <%= f.text_field :details,
+                    class: "form-control #{'is-invalid' if @new_payout_account.errors[:details].any?}",
+                    placeholder: t('payout_accounts.fields.details_placeholder'),
+                    id: "payout_account_details" %>
+              <div class="form-text"><%= t('payout_accounts.fields.details_hint') %></div>
+              <% if @new_payout_account.errors[:details].any? %>
+                <div class="invalid-feedback"><%= @new_payout_account.errors[:details].first %></div>
+              <% end %>
+            </div>
+
+            <%= f.submit t('payout_accounts.add_btn'), class: "wantu-btn wantu-btn--primary w-100" %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Existing Payout Accounts %>
+    <div class="col-md-7 mb-4">
+      <h5 class="fw-bold font-monospace mb-3"><%= t('payout_accounts.your_accounts') %></h5>
+
+      <% if @payout_accounts.any? %>
+        <% @payout_accounts.each do |account| %>
+          <div class="card mb-3 border-dark rounded-3" id="<%= dom_id(account) %>">
+            <div class="card-body d-flex justify-content-between align-items-center p-3">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="badge bg-dark font-monospace">
+                    <%= account.country == "UG" ? "🇺🇬 UGX" : "🇰🇪 KES" %>
+                  </span>
+                  <strong class="font-monospace"><%= t("payout_accounts.kinds.#{account.kind}") %></strong>
+                  <% if account.verified? %>
+                    <span class="badge bg-success small">✓ <%= t('payout_accounts.verified') %></span>
+                  <% else %>
+                    <span class="badge bg-warning text-dark small"><%= t('payout_accounts.unverified') %></span>
+                  <% end %>
+                </div>
+                <p class="text-muted small mb-0 font-monospace">
+                  <%= t('payout_accounts.fields.details') %>: <%= account.details %>
+                </p>
+              </div>
+              <%= button_to t('actions.delete'), dashboard_payout_account_path(account),
+                    method: :delete,
+                    data: { turbo_confirm: t('prompts.confirm_delete') },
+                    class: "btn btn-outline-danger btn-sm font-monospace" %>
+            </div>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="text-center py-5 text-muted">
+          <p class="mb-1"><%=t('payout_accounts.no_accounts')%></p>
+          <small><%=t('payout_accounts.no_accounts_hint')%></small>
+        </div>
+      <% end %>
+    </div>
+
+  </div>
+</section>

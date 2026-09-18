@@ -1,0 +1,11 @@
+<% content_for :title, t('listings.edit') %>
+
+<section class="container py-4">
+  <nav class="mb-3 small text-muted">
+    <%= link_to t('dashboard.title', default: 'Agent Dashboard'), dashboard_listings_path, class: "text-decoration-none" %> &rsaquo;
+    <%= link_to t('dashboard.my_listings', default: 'My Listings'), dashboard_listings_path, class: "text-decoration-none" %> &rsaquo;
+    Edit
+  </nav>
+  <h2><%= t('listings.edit') %></h2>
+  <%= render "form", listing: @listing %>
+</section>

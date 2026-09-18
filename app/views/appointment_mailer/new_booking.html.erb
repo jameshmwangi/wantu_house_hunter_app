@@ -1,0 +1,9 @@
+<h2><%= t('mailers.new_booking.heading') %></h2>
+<p><%= t('mailers.new_booking.greeting', name: @agent.full_name) %></p>
+<p><%= t('mailers.new_booking.body', title: @listing.title) %></p>
+<ul>
+  <li><%= t('dashboard.booking_card.home_seeker') %>: <%= @seeker.full_name %> (<%= @seeker.email %>)</li>
+  <li><%= t('viewing_appointments.fields.scheduled_at') %>: <%= @appointment.scheduled_at.in_time_zone('Nairobi').strftime('%A, %d %B %Y at %I:%M %p EAT') %></li>
+  <li><%= t('viewing_appointments.fields.fee') %>: Ksh <%= number_with_delimiter(@appointment.fee_amount) %></li>
+</ul>
+<p><%= link_to t('mailers.new_booking.cta'), dashboard_appointments_url %></p>

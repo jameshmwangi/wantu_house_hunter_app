@@ -1,0 +1,9 @@
+<h2><%= t('mailers.payment_failed.heading') %></h2>
+<p><%= t('mailers.payment_failed.greeting', name: @seeker.full_name) %></p>
+<p><%= t('mailers.payment_failed.body', title: @listing.title) %></p>
+<ul>
+  <li><%= t('mailers.payment_failed.method') %>: <%= @attempt.payment_method.humanize %></li>
+  <li><%= t('mailers.payment_failed.reference') %>: <%= @attempt.payment_reference %></li>
+</ul>
+<p><%= t('mailers.payment_failed.retry_cta') %></p>
+<p><%= link_to t('mailers.payment_failed.browse_cta'), listings_url %></p>

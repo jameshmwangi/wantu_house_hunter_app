@@ -1,0 +1,12 @@
+<% if @comment.parent_comment_id.present? %>
+  <%# Reply: append to the replies thread of the parent comment %>
+  <% parent = @comment.parent_comment_id %>
+  <%= turbo_stream.append "replies-#{parent}" do %>
+    <%= render "listings/reply", reply: @comment, listing: @listing %>
+  <% end %>
+<% else %>
+  <%# Top-level comment: prepend to comments list %>
+  <%= turbo_stream.prepend "comments-list" do %>
+    <%= render "listings/comment", comment: @comment, listing: @listing %>
+  <% end %>
+<% end %>

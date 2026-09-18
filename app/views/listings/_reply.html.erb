@@ -1,0 +1,21 @@
+<div class="wantu-comment wantu-comment--reply" id="<%= dom_id(reply) %>">
+  <div class="d-flex align-items-start gap-2">
+    <div class="wantu-agent-card__avatar wantu-agent-card__avatar--reply <%= reply.author.avatar_role_class %>">
+      <%= avatar_for(reply.author, img_class: 'wantu-agent-card__avatar__img') %>
+    </div>
+    <div class="flex-grow-1">
+      <strong><%= reply.author.full_name %></strong>
+      <p><%= reply.body %></p>
+      <div class="wantu-comment__meta">
+        <small><%= l(reply.created_at.in_time_zone('Nairobi'), format: :short) %></small>
+        <% if user_signed_in? && (reply.author_id == current_user.id || current_user.admin?) %>
+          <%= button_to t('actions.delete'),
+              listing_property_comment_path(listing, reply),
+              method: :delete,
+              class: "btn btn-sm btn-link text-danger p-0",
+              data: { turbo_confirm: t('prompts.confirm_delete') } %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

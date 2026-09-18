@@ -1,0 +1,139 @@
+<div class="admin-dashboard">
+
+  <h2 class="dashboard-title">Platform Overview</h2>
+
+  <%# Stat cards — row of 4 %>
+  <div class="stat-cards">
+    <div class="stat-card">
+      <div class="stat-number"><%= @stats[:total_users] %></div>
+      <div class="stat-label">TOTAL USERS</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><%= @stats[:active_listings] %></div>
+      <div class="stat-label">ACTIVE LISTINGS</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><%= @stats[:total_bookings] %></div>
+      <div class="stat-label">TOTAL BOOKINGS</div>
+    </div>
+    <div class="stat-card stat-card--highlight">
+      <div class="stat-number">
+        Ksh <%= number_with_delimiter(@stats[:payments_received].to_i) %>
+      </div>
+      <div class="stat-label">PAYMENTS RECEIVED</div>
+    </div>
+  </div>
+
+  <%# Users preview — last 5 %>
+  <div class="admin-section">
+    <h3 class="section-title">Users</h3>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Email</th>
+          <th>Role</th><th>Joined</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_users.each do |user| %>
+          <tr>
+            <td>#<%= user.id %></td>
+            <td>
+              <span class="user-avatar <%= user.avatar_role_class %>"><% if user.avatar.attached? %><%= image_tag user.avatar, class: 'user-avatar__img', alt: user.full_name %><% else %><%= user.full_name.first %><% end %></span>
+              <%= user.full_name %>
+            </td>
+            <td><%= user.email %></td>
+            <td>
+              <span class="role-badge role-badge--<%= user.role %>">
+                <%= user.role.humanize %>
+              </span>
+            </td>
+            <td><%= user.created_at.strftime('%d %b') %></td>
+            <td>
+              <%= link_to 'Edit',
+                rails_admin.edit_path(model_name: 'user', id: user.id),
+                class: 'btn-admin btn-admin--edit' %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <%= link_to 'View all users →',
+      rails_admin.index_path(model_name: 'user'),
+      class: 'view-all-link' %>
+  </div>
+
+  <%# Properties preview — last 5 %>
+  <div class="admin-section">
+    <h3 class="section-title">Properties</h3>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Title</th><th>Agent</th><th>Type</th>
+          <th>Price</th><th>Status</th><th>Featured</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_listings.each do |listing| %>
+          <tr>
+            <td>#<%= listing.id %></td>
+            <td><%= truncate(listing.title, length: 25) %></td>
+            <td><%= listing.user.full_name %></td>
+            <td><%= "#{listing.need_type.capitalize}/#{listing.room_layout.humanize}" %></td>
+            <td><%= number_with_delimiter(listing.price.to_i) %></td>
+            <td>
+              <span class="status-badge status-badge--<%= listing.status %>">
+                <%= listing.status.capitalize %>
+              </span>
+            </td>
+            <td><%= listing.featured? ? 'Yes' : 'No' %></td>
+            <td>
+              <%= link_to 'Edit',
+                rails_admin.edit_path(model_name: 'listing', id: listing.id),
+                class: 'btn-admin btn-admin--edit' %>
+              <%= link_to 'Delete',
+                rails_admin.delete_path(model_name: 'listing', id: listing.id),
+                method: :delete,
+                data: { confirm: 'Delete this listing?' },
+                class: 'btn-admin btn-admin--delete' %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <%= link_to 'View all properties →',
+      rails_admin.index_path(model_name: 'listing'),
+      class: 'view-all-link' %>
+  </div>
+
+  <%# Finance summary %>
+  <div class="admin-section">
+    <h3 class="section-title">Finances</h3>
+    <table class="admin-table admin-table--finance">
+      <thead>
+        <tr>
+          <th>Total Processed</th>
+          <th>Total Released</th>
+          <th>Held in Escrow</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="finance-highlight">
+            Ksh <%= number_with_delimiter(@finance[:total_processed].to_i) %>
+          </td>
+          <td>
+            Ksh <%= number_with_delimiter(@finance[:total_released].to_i) %>
+          </td>
+          <td>
+            Ksh <%= number_with_delimiter(@finance[:held_in_escrow].to_i) %>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <%= link_to 'View payment records →',
+      rails_admin.index_path(model_name: 'payment_attempt'),
+      class: 'view-all-link' %>
+  </div>
+
+</div>

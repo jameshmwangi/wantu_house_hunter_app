@@ -1,0 +1,132 @@
+<% content_for :title, t('payment_attempts.title') %>
+
+<section class="container py-4">
+  <%# Breadcrumb %>
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0">
+      <li class="breadcrumb-item"><%= link_to t('viewing_appointments.title'), new_listing_viewing_appointment_path(@listing) %></li>
+      <li class="breadcrumb-item active" aria-current="page"><%= t('payment_attempts.title') %></li>
+    </ol>
+  </nav>
+
+  <h2 class="font-serif mb-4"><%= t('payment_attempts.complete_payment', default: 'Complete Payment') %></h2>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <%# Property summary card (same as S04) %>
+      <div class="card mb-4">
+        <div class="card-body d-flex align-items-center gap-3">
+          <% if @listing.property_images.any? && @listing.property_images.first.image.attached? %>
+            <%= image_tag @listing.property_images.first.image,
+                class: "rounded", style: "width:80px;height:80px;object-fit:cover;",
+                alt: @listing.title %>
+          <% end %>
+          <div>
+            <span class="wantu-badge wantu-badge--<%= @listing.need_type %>">
+              <%= t("listings.need_type.#{@listing.need_type}") %>
+            </span>
+            <h5 class="mb-0"><%= @listing.title %>, <%= @listing.location.area_name %></h5>
+            <p class="mb-0 text-muted"><%= @listing.room_layout.humanize %> &middot; <%= @listing.location.sub_county %></p>
+            <span class="text-success fw-bold">Ksh <%= number_with_delimiter(@listing.price) %>/<%= @listing.price_period %></span>
+          </div>
+        </div>
+      </div>
+
+      <%# Listing owner card (same as S04) %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <small class="text-muted text-uppercase"><%= t('viewing_appointments.listing_owner') %></small>
+          <div class="d-flex align-items-center gap-3 mt-2">
+            <div class="wantu-avatar <%= @listing.user.avatar_role_class %>">
+              <%= avatar_for(@listing.user) %>
+            </div>
+            <div>
+              <strong><%= @listing.user.full_name %></strong>
+              <p class="mb-0 text-muted"><%= t("roles.#{@listing.user.role}") %> &middot; <%= @listing.user.listings.published.count %> <%= t('dashboard.my_listings') %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Payment form %>
+      <%= form_tag payment_attempts_path, method: :post do %>
+        <%= hidden_field_tag :viewing_appointment_id, @appointment.id %>
+
+        <%# Payment Method toggle %>
+        <div class="mb-4" data-controller="payment-method">
+          <h6 class="fw-bold mb-3"><%= t('payment_attempts.fields.payment_method') %></h6>
+          <div class="d-flex gap-3 mb-4">
+            <label class="wantu-btn <%= @payment_method == 'mpesa' ? 'wantu-btn--primary' : 'wantu-btn--outline' %> flex-fill text-center"
+                   style="cursor:pointer"
+                   data-payment-method-target="button"
+                   data-action="click->payment-method#select">
+              <input type="radio" name="payment_method" value="mpesa" class="d-none" <%= 'checked' if @payment_method == 'mpesa' %>>
+              <%= t('payment_attempts.fields.mpesa') %>
+            </label>
+            <label class="wantu-btn <%= @payment_method == 'card' ? 'wantu-btn--primary' : 'wantu-btn--outline' %> flex-fill text-center"
+                   style="cursor:pointer"
+                   data-payment-method-target="button"
+                   data-action="click->payment-method#select">
+              <input type="radio" name="payment_method" value="card" class="d-none" <%= 'checked' if @payment_method == 'card' %>>
+              <%= t('payment_attempts.fields.card') %>
+            </label>
+          </div>
+
+          <%# M-Pesa details %>
+          <div class="card mb-4" data-payment-method-target="mpesaForm" style="<%= 'display:none' if @payment_method == 'card' %>">
+            <div class="card-body">
+              <h6 class="text-success fw-bold text-uppercase small mb-3"><%= t('payment_attempts.mpesa_details', default: 'M-Pesa Details') %></h6>
+              <div class="mb-0">
+                <label class="form-label small fw-medium"><%= t('payment_attempts.mpesa_number', default: 'M-Pesa Number') %></label>
+                <input type="tel" name="mpesa_number" class="form-control" placeholder="+254 7__ ___ ____" value="<%= current_user.phone_number %>">
+              </div>
+            </div>
+          </div>
+
+          <%# Card details %>
+          <div class="card mb-4" data-payment-method-target="cardForm" style="<%= 'display:none' if @payment_method != 'card' %>">
+            <div class="card-body">
+              <h6 class="text-success fw-bold text-uppercase small mb-3"><%= t('payment_attempts.card_details', default: 'Card Details') %></h6>
+              <div class="mb-3">
+                <label class="form-label small fw-medium"><%= t('payment_attempts.cardholder_name', default: 'Cardholder Name') %></label>
+                <input type="text" name="cardholder_name" class="form-control" placeholder="<%= current_user.full_name %>">
+              </div>
+              <div class="mb-0">
+                <label class="form-label small fw-medium"><%= t('payment_attempts.card_number', default: 'Card Number') %></label>
+                <div class="d-flex gap-2">
+                  <input type="text" name="card_number" class="form-control flex-grow-1" placeholder="Card number">
+                  <input type="text" name="card_expiry" class="form-control" style="max-width:100px" placeholder="Expiry">
+                  <input type="text" name="card_cvv" class="form-control" style="max-width:80px" placeholder="CVV">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%# Payment Simulation %>
+        <div class="card mb-4 border-dark rounded-3">
+          <div class="card-body p-3">
+            <h6 class="fw-bold mb-3"><%= t('viewing_appointments.payment_simulation', default: 'Payment Simulation') %></h6>
+            <div class="d-flex gap-4">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_simulation" id="payment_success" value="success" checked>
+                <label class="form-check-label" for="payment_success">
+                  <%= t('viewing_appointments.payment_success', default: 'Successful Payment') %>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="payment_simulation" id="payment_fail" value="fail">
+                <label class="form-check-label" for="payment_fail">
+                  <%= t('viewing_appointments.payment_fail', default: 'Failed Payment') %>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%# Submit %>
+        <%= submit_tag t('viewing_appointments.submit_payment', default: 'Complete Booking'), class: "wantu-btn wantu-btn--primary w-100 py-3 fs-5" %>
+      <% end %>
+    </div>
+  </div>
+</section>

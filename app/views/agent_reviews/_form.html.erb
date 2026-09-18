@@ -1,0 +1,73 @@
+<% content_for :title, review.new_record? ? t('agent_reviews.new') : t('agent_reviews.edit') %>
+
+<section class="container py-4">
+  <nav class="wantu-breadcrumb mb-3">
+    <%= link_to agent.full_name, agent_profile_path(agent) %> &rsaquo;
+    <span><%= review.new_record? ? t('agent_reviews.new') : t('agent_reviews.edit') %></span>
+  </nav>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2 class="mb-4 font-serif fw-bold"><%= t('agent_reviews.leave_review', default: 'Leave an Agent Review') %></h2>
+
+      <%# Agent card %>
+      <div class="card mb-4 border-dark rounded-3">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="wantu-avatar <%= agent.avatar_role_class %>">
+            <%= avatar_for(agent) %>
+          </div>
+          <div>
+            <strong><%= agent.full_name %></strong>
+            <p class="mb-0 text-muted"><%= t("roles.#{agent.role}") %> &middot; <%= agent.listings.published.count %> <%= t('dashboard.my_listings') %></p>
+          </div>
+        </div>
+      </div>
+
+      <%= form_with model: review, class: "needs-validation" do |f| %>
+        <%= f.hidden_field :agent_id, value: agent.id %>
+
+        <div class="mb-4">
+          <p class="form-label mb-2 fw-bold"><%= t('agent_reviews.fields.rating', default: 'Your Rating') %></p>
+          <div class="d-flex align-items-center gap-3">
+            <div class="text-warning fs-3">
+              &#9733;&#9733;&#9733;&#9733;&#9733;
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <%= f.select :rating,
+                  options_for_select((1..5).to_a.reverse, review.rating || 5),
+                  { prompt: t('agent_reviews.select_rating', default: 'Select...') },
+                  class: "form-select #{'is-invalid' if review.errors[:rating].any?}", style: "width:auto;" %>
+              <span class="text-muted fw-bold">/ 5</span>
+            </div>
+          </div>
+          <% if review.errors[:rating].any? %>
+            <div class="invalid-feedback d-block"><%= review.errors[:rating].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="mb-4">
+          <%= f.label :title, t('agent_reviews.fields.title', default: 'Review Title'), class: "form-label fw-bold" %>
+          <%= f.text_field :title, class: "form-control border-dark #{'is-invalid' if review.errors[:title].any?}",
+              placeholder: t('agent_reviews.title_placeholder', default: 'Professional and responsive') %>
+          <% if review.errors[:title].any? %>
+            <div class="invalid-feedback d-block"><%= review.errors[:title].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="mb-4">
+          <%= f.label :body, t('agent_reviews.fields.body', default: 'Your Comment'), class: "form-label fw-bold" %>
+          <%= f.text_area :body, rows: 5, class: "form-control border-dark #{'is-invalid' if review.errors[:body].any?}",
+              placeholder: t('agent_reviews.body_placeholder', default: 'Communication was clear and the viewing happened on time. I would book another viewing with this agent.') %>
+          <% if review.errors[:body].any? %>
+            <div class="invalid-feedback d-block"><%= review.errors[:body].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="d-flex gap-3 mt-4 pt-3 border-top">
+          <%= f.submit t('agent_reviews.submit_btn', default: 'Submit Review'), class: "wantu-btn wantu-btn--primary px-5" %>
+          <%= link_to t('actions.cancel', default: 'Cancel'), agent_profile_path(agent), class: "btn btn-outline-dark px-4" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,25 @@
+<% content_for :title, t('locations.show.title', area: @location.area_name) %>
+
+<section class="container py-4">
+  <nav class="wantu-breadcrumb mb-3">
+    <%= link_to t('nav.home'), root_path %> &rsaquo;
+    <%= link_to t('locations.title'), locations_path %> &rsaquo;
+    <span><%= @location.area_name %></span>
+  </nav>
+
+  <h2><%= @location.area_name %>, <%= @location.county %></h2>
+
+  <% if @listings.any? %>
+    <div class="wantu-properties-grid">
+      <% @listings.each do |listing| %>
+        <%= render "shared/property_card", listing: listing %>
+      <% end %>
+    </div>
+
+    <%= render "shared/pagination", collection: @listings %>
+  <% else %>
+    <div class="text-center py-5">
+      <p><%= t('locations.show.no_results') %></p>
+    </div>
+  <% end %>
+</section>

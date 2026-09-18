@@ -1,0 +1,58 @@
+<div class="wantu-comment" id="<%= dom_id(comment) %>">
+  <div class="d-flex align-items-start gap-2">
+    <div class="wantu-agent-card__avatar wantu-agent-card__avatar--comment <%= comment.author.avatar_role_class %>">
+      <%= avatar_for(comment.author, img_class: 'wantu-agent-card__avatar__img') %>
+    </div>
+    <div class="flex-grow-1">
+      <strong><%= comment.author.full_name %></strong>
+      <p><%= comment.body %></p>
+      <div class="wantu-comment__meta">
+        <small><%= l(comment.created_at.in_time_zone('Nairobi'), format: :short) %></small>
+        <% if user_signed_in? %>
+          <small>
+            <a href="#reply-<%= comment.id %>" data-bs-toggle="collapse"><%= t('property_comments.reply') %></a>
+          </small>
+          <% if comment.author_id == current_user.id || current_user.admin? %>
+            <%= button_to t('actions.delete'),
+                listing_property_comment_path(listing, comment),
+                method: :delete,
+                class: "btn btn-sm btn-link text-danger p-0",
+                data: { turbo_confirm: t('prompts.confirm_delete') } %>
+          <% end %>
+        <% end %>
+      </div>
+
+      <%# Reply form %>
+      <% if user_signed_in? %>
+        <div class="collapse mt-2" id="reply-<%= comment.id %>">
+          <%= form_with url: listing_property_comments_path(listing), scope: :property_comment, class: "d-flex gap-2", data: { controller: "comment-form", comment_form_listing_id_value: listing.id } do |f| %>
+            <%= f.hidden_field :parent_comment_id, value: comment.id %>
+            <%= f.text_field :body, placeholder: t('property_comments.reply'), class: "form-control form-control-sm", data: { comment_form_target: "body" } %>
+            <%= f.submit t('property_comments.reply'), class: "btn btn-sm btn-outline-secondary", data: { comment_form_target: "submit" } %>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%# Threaded replies %>
+      <div class="wantu-comment__replies-thread" id="replies-<%= comment.id %>">
+        <% if comment.replies.any? %>
+          <%# Always show first reply inline %>
+          <%= render "listings/reply", reply: comment.replies.first, listing: listing %>
+
+          <%# If more than 1 reply, collapse the rest behind a toggle %>
+          <% remaining_replies = comment.replies.drop(1) %>
+          <% if remaining_replies.any? %>
+            <a href="#" data-bs-toggle="collapse" data-bs-target="#more-replies-<%= comment.id %>" class="wantu-link small d-block mt-1">
+              <%= t('listings.show.view_more_replies', count: remaining_replies.size) %> &#9662;
+            </a>
+            <div class="collapse" id="more-replies-<%= comment.id %>">
+              <% remaining_replies.each do |reply| %>
+                <%= render "listings/reply", reply: reply, listing: listing %>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

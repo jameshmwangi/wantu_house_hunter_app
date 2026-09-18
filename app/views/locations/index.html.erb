@@ -1,0 +1,22 @@
+<% content_for :title, t('locations.title') %>
+
+<section class="container py-4">
+  <h2><%= t('locations.title') %></h2>
+
+  <div class="row g-3">
+    <% @locations.group_by(&:county).each do |county, locs| %>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title"><%= county %></h5>
+            <ul class="list-unstyled mb-0">
+              <% locs.each do |location| %>
+                <li><%= link_to location.area_name, location_path(location) %></li>
+              <% end %>
+            </ul>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</section>

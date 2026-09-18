@@ -1,0 +1,15 @@
+<nav class="wantu-navbar navbar-expand-lg">
+  <div class="container wantu-navbar__inner d-flex justify-content-between align-items-center">
+    <%# Logo %>
+    <%= link_to root_path, class: "wantu-logo" do %>
+      <span class="wantu-logo__icon">W</span>
+      <span class="wantu-logo__text"><%= t('app.name') %></span>
+    <% end %>
+
+    <%# Right-side actions %>
+    <div class="wantu-navbar__actions">
+      <%= link_to t('nav.login', default: 'Login'), new_session_path(:user), class: "wantu-btn wantu-btn--outline" %>
+      <%= link_to t('devise.shared.links.register_here', default: 'Register'), new_registration_path(:user), class: "wantu-btn wantu-btn--primary" %>
+    </div>
+  </div>
+</nav>

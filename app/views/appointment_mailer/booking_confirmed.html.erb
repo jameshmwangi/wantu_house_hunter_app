@@ -1,0 +1,9 @@
+<h2><%= t('mailers.booking_confirmed.heading') %></h2>
+<p><%= t('mailers.booking_confirmed.greeting', name: @seeker.full_name) %></p>
+<p><%= t('mailers.booking_confirmed.body', title: @listing.title) %></p>
+<ul>
+  <li><%= t('viewing_appointments.fields.scheduled_at') %>: <%= @appointment.scheduled_at.in_time_zone('Nairobi').strftime('%A, %d %B %Y at %I:%M %p EAT') %></li>
+  <li><%= t('listings.fields.location') %>: <%= @listing.location.area_name %>, <%= @listing.location.county %></li>
+  <li><%= t('users.agent_label') %>: <%= @appointment.agent.full_name %> — <%= @appointment.agent.phone_number %></li>
+</ul>
+<p><%= t('mailers.booking_confirmed.footer') %></p>

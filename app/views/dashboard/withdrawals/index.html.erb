@@ -1,0 +1,192 @@
+<% content_for :title, t('withdrawals.title') %>
+
+<section class="wantu-dashboard-header">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="font-serif mb-1"><%= t('withdrawals.title') %></h2>
+        <p class="text-muted mb-0"><%= t('withdrawals.subtitle', default: 'Request a payout to your verified mobile money or bank account') %></p>
+      </div>
+      <%= link_to t('payout_accounts.title'), dashboard_payout_accounts_path, class: "wantu-btn wantu-btn--outline" %>
+    </div>
+  </div>
+</section>
+
+<section class="container py-4">
+
+  <%# ── Balance Cards ─────────────────────────────────────────────────────── %>
+  <div class="row g-3 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4" id="balance-kes-card">
+        <div class="card-body text-center py-4">
+          <div class="text-uppercase fw-bold text-muted small mb-2"><%= t('withdrawals.balance.kes', default: 'Available KES') %></div>
+          <div class="font-serif text-success" style="font-size: 2rem; line-height: 1;">
+            Ksh&nbsp;<%= number_with_delimiter(@available_kes / 100.0, precision: 2) %>
+          </div>
+          <div class="text-muted small mt-1"><%= t('withdrawals.balance.released', default: 'Released escrow balance') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4" id="balance-ugx-card">
+        <div class="card-body text-center py-4">
+          <div class="text-uppercase fw-bold text-muted small mb-2"><%= t('withdrawals.balance.ugx', default: 'Available UGX') %></div>
+          <div class="font-serif text-success" style="font-size: 2rem; line-height: 1;">
+            UGX&nbsp;<%= number_with_delimiter(@available_ugx / 100.0, precision: 0) %>
+          </div>
+          <div class="text-muted small mt-1"><%= t('withdrawals.balance.released', default: 'Released escrow balance') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4" id="total-withdrawals-card">
+        <div class="card-body text-center py-4">
+          <div class="text-uppercase fw-bold text-muted small mb-2"><%= t('withdrawals.stats.total', default: 'Total Withdrawals') %></div>
+          <div class="font-serif" style="font-size: 2rem; line-height: 1;">
+            <%= @withdrawals.count %>
+          </div>
+          <div class="text-muted small mt-1"><%= t('withdrawals.stats.all_time', default: 'All time') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4" id="paid-withdrawals-card">
+        <div class="card-body text-center py-4">
+          <div class="text-uppercase fw-bold text-muted small mb-2"><%= t('withdrawals.stats.paid', default: 'Paid Out') %></div>
+          <div class="font-serif text-success" style="font-size: 2rem; line-height: 1;">
+            <%= @withdrawals.count(&:paid?) %>
+          </div>
+          <div class="text-muted small mt-1"><%= t('withdrawals.stats.successful', default: 'Successful payouts') %></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <%# ── Request Payout Form ─────────────────────────────────────────────── %>
+    <div class="col-md-5 mb-4">
+      <div class="card border-dark rounded-3 h-100">
+        <div class="card-body p-4">
+          <h5 class="fw-bold font-monospace mb-4"><%= t('withdrawals.request_payout', default: 'Request Payout') %></h5>
+
+          <% if @payout_accounts.any? %>
+            <%= form_with model: @new_withdrawal, url: dashboard_withdrawals_path, local: true, id: "withdrawal-form" do |f| %>
+              <% if @new_withdrawal.errors.any? %>
+                <div class="alert alert-danger mb-3 small" id="withdrawal-errors">
+                  <% @new_withdrawal.errors.full_messages.each do |msg| %>
+                    <div><%= msg %></div>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <div class="mb-3">
+                <label class="form-label fw-medium small"><%= t('withdrawals.fields.payout_account', default: 'Payout Account') %></label>
+                <%= f.select :payout_account_id,
+                      @payout_accounts.map { |a|
+                        label = "#{a.country == 'UG' ? '🇺🇬 UGX' : '🇰🇪 KES'} · #{t("payout_accounts.kinds.#{a.kind}", default: a.kind.humanize)} · #{a.details}"
+                        [label, a.id]
+                      },
+                      { include_blank: t('withdrawals.fields.select_account', default: 'Select account…') },
+                      class: "form-select #{'is-invalid' if @new_withdrawal.errors[:payout_account_id].any?}",
+                      id: "withdrawal_payout_account_id" %>
+                <% if @new_withdrawal.errors[:payout_account_id].any? %>
+                  <div class="invalid-feedback"><%= @new_withdrawal.errors[:payout_account_id].first %></div>
+                <% end %>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label fw-medium small"><%= t('withdrawals.fields.amount', default: 'Amount') %></label>
+                <div class="input-group">
+                  <span class="input-group-text font-monospace">KES / UGX</span>
+                  <%= f.number_field :amount,
+                        step: 1, min: 1,
+                        class: "form-control #{'is-invalid' if @new_withdrawal.errors[:amount].any?}",
+                        placeholder: "e.g. 500",
+                        id: "withdrawal_amount" %>
+                  <% if @new_withdrawal.errors[:amount].any? %>
+                    <div class="invalid-feedback"><%= @new_withdrawal.errors[:amount].first %></div>
+                  <% end %>
+                </div>
+                <div class="form-text">
+                  <%= t('withdrawals.fields.amount_hint',
+                        kes: number_with_delimiter(@available_kes / 100.0, precision: 2),
+                        ugx: number_with_delimiter(@available_ugx / 100.0, precision: 0),
+                        default: "Available: Ksh #{number_with_delimiter(@available_kes / 100.0, precision: 2)} KES · UGX #{number_with_delimiter(@available_ugx / 100.0, precision: 0)}") %>
+                </div>
+              </div>
+
+              <%= f.submit t('withdrawals.submit_btn', default: 'Request Payout'),
+                    class: "wantu-btn wantu-btn--primary w-100",
+                    id: "withdrawal-submit-btn" %>
+            <% end %>
+          <% else %>
+            <div class="text-center py-5 text-muted">
+              <p class="mb-2"><%= t('withdrawals.no_accounts', default: 'No verified payout accounts yet.') %></p>
+              <%= link_to t('withdrawals.add_account', default: 'Add a payout account'),
+                    dashboard_payout_accounts_path, class: "wantu-btn wantu-btn--outline" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# ── Withdrawal History ──────────────────────────────────────────────── %>
+    <div class="col-md-7 mb-4">
+      <h5 class="fw-bold font-monospace mb-3"><%= t('withdrawals.history', default: 'Withdrawal History') %></h5>
+
+      <% if @withdrawals.any? %>
+        <div class="table-responsive">
+          <table class="table wantu-table" id="withdrawals-table">
+            <thead>
+              <tr>
+                <th class="font-monospace small"><%= t('withdrawals.table.date', default: 'Date') %></th>
+                <th class="font-monospace small"><%= t('withdrawals.table.amount', default: 'Amount') %></th>
+                <th class="font-monospace small"><%= t('withdrawals.table.account', default: 'Account') %></th>
+                <th class="font-monospace small"><%= t('withdrawals.table.status', default: 'Status') %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @withdrawals.each do |withdrawal| %>
+                <tr id="<%= dom_id(withdrawal) %>">
+                  <td class="font-monospace small text-muted">
+                    <%= withdrawal.requested_at&.strftime('%b %d, %Y') || withdrawal.created_at.strftime('%b %d, %Y') %>
+                  </td>
+                  <td class="font-monospace fw-bold">
+                    <% currency_symbol = withdrawal.currency == "UGX" ? "UGX" : "Ksh" %>
+                    <%= currency_symbol %>&nbsp;<%= number_with_delimiter(withdrawal.amount_cents / 100.0, precision: withdrawal.currency == "UGX" ? 0 : 2) %>
+                  </td>
+                  <td class="small text-muted">
+                    <% if withdrawal.payout_account %>
+                      <span class="badge bg-dark font-monospace">
+                        <%= withdrawal.payout_account.country == "UG" ? "🇺🇬" : "🇰🇪" %>
+                        <%= t("payout_accounts.kinds.#{withdrawal.payout_account.kind}", default: withdrawal.payout_account.kind.humanize) %>
+                      </span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <% badge_class = {
+                         "paid"       => "bg-success",
+                         "processing" => "bg-primary",
+                         "requested"  => "bg-secondary",
+                         "failed"     => "bg-danger"
+                       }[withdrawal.status] || "bg-secondary" %>
+                    <span class="badge <%= badge_class %> font-monospace">
+                      <%= t("withdrawals.statuses.#{withdrawal.status}", default: withdrawal.status.capitalize) %>
+                    </span>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="text-center py-5 text-muted border rounded-3">
+          <p class="mb-1"><%= t('withdrawals.no_history', default: 'No withdrawals yet.') %></p>
+          <small><%= t('withdrawals.no_history_hint', default: 'Payouts will appear here once you request them.') %></small>
+        </div>
+      <% end %>
+    </div>
+
+  </div>
+</section>

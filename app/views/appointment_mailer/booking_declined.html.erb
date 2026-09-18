@@ -1,0 +1,4 @@
+<h2><%= t('mailers.booking_declined.heading') %></h2>
+<p><%= t('mailers.booking_declined.greeting', name: @seeker.full_name) %></p>
+<p><%= t('mailers.booking_declined.body', title: @listing.title, date: @appointment.scheduled_at.in_time_zone('Nairobi').strftime('%d %B %Y')) %></p>
+<p><%= link_to t('mailers.booking_declined.cta'), listings_url %></p>

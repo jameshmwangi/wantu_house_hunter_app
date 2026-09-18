@@ -1,0 +1,77 @@
+<% content_for :title, t('users.edit_account') %>
+
+<section class="container py-4">
+  <nav class="wantu-breadcrumb mb-3">
+    <%= link_to t('users.account'), account_path %> &rsaquo;
+    <span><%= t('users.edit_profile') %></span>
+  </nav>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2 class="mb-4 font-serif"><%= t('users.edit_profile') %></h2>
+
+      <%= form_with model: @user, url: account_path, method: :patch, class: "needs-validation" do |f| %>
+        <div class="text-center mb-3">
+          <div class="wantu-avatar wantu-avatar--lg mx-auto mb-2 <%= @user.avatar_role_class %>">
+            <%= avatar_for(@user) %>
+          </div>
+          <%= f.label :avatar, 'Change Photo', class: 'small text-decoration-none', style: 'cursor: pointer' %>
+          <%= f.file_field :avatar, class: 'd-none', accept: 'image/png,image/jpeg,image/webp' %>
+          <% if @user.errors[:avatar].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:avatar].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="mb-3">
+          <%= f.label :full_name, t('devise.labels.full_name'), class: "form-label" %>
+          <%= f.text_field :full_name, class: "form-control #{'is-invalid' if @user.errors[:full_name].any?}" %>
+          <% if @user.errors[:full_name].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:full_name].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="mb-3">
+          <%= f.label :phone_number, t('devise.labels.phone_number'), class: "form-label" %>
+          <%= f.telephone_field :phone_number, class: "form-control #{'is-invalid' if @user.errors[:phone_number].any?}" %>
+          <% if @user.errors[:phone_number].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:phone_number].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="mb-3">
+          <%= f.label :bio, t('users.bio', default: 'Bio (optional)'), class: "form-label" %>
+          <%= f.text_area :bio, rows: 4, class: "form-control" %>
+        </div>
+
+        <h4 class="mt-4 mb-3 font-serif">Password</h4>
+        <div class="mb-3">
+          <%= f.label :current_password, "Old Password", class: "form-label" %>
+          <%= f.password_field :current_password, class: "form-control #{'is-invalid' if @user.errors[:current_password].any?}", autocomplete: "current-password" %>
+          <% if @user.errors[:current_password].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:current_password].join(", ") %></div>
+          <% end %>
+          <small class="form-text text-muted"><%= t('users.password_hint', default: 'Leave password fields blank to keep current password') %></small>
+        </div>
+        <div class="mb-3">
+          <%= f.label :password, "New Password", class: "form-label" %>
+          <%= f.password_field :password, class: "form-control #{'is-invalid' if @user.errors[:password].any?}", autocomplete: "new-password" %>
+          <% if @user.errors[:password].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:password].join(", ") %></div>
+          <% end %>
+        </div>
+        <div class="mb-4">
+          <%= f.label :password_confirmation, "Confirm New Password", class: "form-label" %>
+          <%= f.password_field :password_confirmation, class: "form-control #{'is-invalid' if @user.errors[:password_confirmation].any?}", autocomplete: "new-password" %>
+          <% if @user.errors[:password_confirmation].any? %>
+            <div class="invalid-feedback d-block"><%= @user.errors[:password_confirmation].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <%= f.submit t('users.update_profile'), class: "wantu-btn wantu-btn--primary" %>
+          <%= link_to "&larr; #{t('actions.back')}".html_safe, account_path, class: "wantu-btn wantu-btn--outline" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

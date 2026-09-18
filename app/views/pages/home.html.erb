@@ -1,0 +1,157 @@
+<% content_for :title, t('app.name') %>
+
+<%# Hero %>
+<section class="wantu-hero container">
+  <div class="wantu-hero__content">
+    <h1 class="wantu-hero__title"><%= t('home.hero_title') %></h1>
+    <p class="wantu-hero__subtitle"><%= t('home.subtitle') %></p>
+
+    <%# Search box  %>
+    <div class="wantu-search">
+      <%= form_tag listings_path, method: :get do %>
+        <%# Tabs: Rent / Buy / BnB / All %>
+        <div class="wantu-search__tabs">
+          <% Listing::NEED_TYPES.each do |type| %>
+            <input type="radio" class="btn-check" name="need_type"
+                   id="tab_<%= type %>" value="<%= type %>" autocomplete="off"
+                   <%= 'checked' if params[:need_type] == type %>>
+            <label class="wantu-tab"
+                   for="tab_<%= type %>">
+              <%= t("home.need_type.#{type}") %>
+            </label>
+          <% end %>
+          <input type="radio" class="btn-check" name="need_type"
+                 id="tab_all" value="" autocomplete="off"
+                 <%= 'checked' if params[:need_type].blank? %>>
+          <label class="wantu-tab" for="tab_all">
+            <%= t('home.need_type.all', default: 'All') %>
+          </label>
+        </div>
+
+        <%# Row 1: price range + keyword + search button %>
+        <div class="wantu-search__row">
+          <%= number_field_tag :min_price, params[:min_price],
+              class: "wantu-input", placeholder: t('home.min_price') %>
+          <%= number_field_tag :max_price, params[:max_price],
+              class: "wantu-input", placeholder: t('home.max_price') %>
+          <%= text_field_tag :keyword, params[:keyword],
+              class: "wantu-input wantu-input--wide", placeholder: t('home.search_placeholder') %>
+          <%= submit_tag t('actions.search'), class: "wantu-btn wantu-btn--primary" %>
+        </div>
+
+        <%# Row 2: filters (3 columns, no location dropdown) %>
+        <div class="wantu-search__filters wantu-search__filters--three">
+          <%= select_tag :use_case,
+              options_for_select(
+                Listing::USE_CASES.map { |uc| [t("home.use_case_options.#{uc}"), uc] },
+                params[:use_case]
+              ),
+              include_blank: t('home.use_case_placeholder'), class: "wantu-input" %>
+          <%= select_tag :room_layout,
+              options_for_select(
+                Listing::ROOM_LAYOUTS.map { |rl| [t("home.room_layout.#{rl}"), rl] },
+                params[:room_layout]
+              ),
+              include_blank: t('home.room_layout_placeholder'), class: "wantu-input" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="wantu-hero__image">
+    <%= image_tag 'mainhero.png', alt: t('home.hero_image_alt') %>
+  </div>
+</section>
+
+<%# About Wantu — service concept & mission %>
+<section class="wantu-about container">
+  <div class="wantu-about__inner">
+    <span class="wantu-about__eyebrow"><%= t('home.about.eyebrow') %></span>
+    <h2 class="wantu-section-title"><%= t('home.about.title') %></h2>
+    <p class="wantu-about__body"><%= t('home.about.body') %></p>
+  </div>
+</section>
+
+<%# How it works — three-step overview %>
+<section class="wantu-how-it-works container">
+  <span class="wantu-how-it-works__eyebrow"><%= t('home.how_it_works.eyebrow') %></span>
+  <h2 class="wantu-section-title"><%= t('home.how_it_works.title') %></h2>
+  <div class="wantu-how-it-works__grid">
+    <div class="wantu-step-card">
+      <div class="wantu-step-card__icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </div>
+      <h3><%= t('home.how_it_works.steps.search.title') %></h3>
+      <p><%= t('home.how_it_works.steps.search.body') %></p>
+    </div>
+
+    <div class="wantu-step-card">
+      <div class="wantu-step-card__icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      </div>
+      <h3><%= t('home.how_it_works.steps.book.title') %></h3>
+      <p><%= t('home.how_it_works.steps.book.body') %></p>
+    </div>
+
+    <div class="wantu-step-card">
+      <div class="wantu-step-card__icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      </div>
+      <h3><%= t('home.how_it_works.steps.move.title') %></h3>
+      <p><%= t('home.how_it_works.steps.move.body') %></p>
+    </div>
+  </div>
+</section>
+
+<%# Browse by location %>
+<section class="wantu-locations container">
+  <h2 class="wantu-section-title"><%= t('home.browse_location_title') %></h2>
+  <div class="wantu-locations__grid">
+    <% @location_cards.each do |card| %>
+      <%= link_to(card[:location] ? listings_path(location_id: card[:location].id) : listings_path,
+          class: "wantu-location-card") do %>
+        <%= image_tag card[:image], alt: card[:area] %>
+        <div class="wantu-location-card__overlay"></div>
+        <h3><%= card[:area] %></h3>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+
+<%# Featured properties %>
+<section class="wantu-featured container">
+  <h2 class="wantu-section-title"><%= t('home.featured_title') %></h2>
+
+  <% if @featured_listings.any? %>
+    <div class="wantu-properties-grid">
+      <% @featured_listings.each do |listing| %>
+        <%= render "shared/property_card", listing: listing %>
+      <% end %>
+    </div>
+
+    <div class="wantu-see-more">
+      <%= link_to listings_path, class: "wantu-btn-see-more" do %>
+        <%= t('home.see_more') %> &rarr;
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-center" style="color: var(--text-gray);"><%= t('home.no_featured') %></p>
+  <% end %>
+</section>
+
+<%# Bottom CTA %>
+<section class="wantu-cta">
+  <div class="wantu-cta__inner container">
+    <div class="wantu-cta__content">
+      <h2><%= t('home.cta_title') %></h2>
+      <p><%= t('home.cta_subtitle') %></p>
+      <div class="wantu-cta__actions">
+        <%= link_to t('home.cta_contact'), "https://jamesportfo1io.netlify.app", target: "_blank", rel: "noopener noreferrer", class: "wantu-btn wantu-btn--blue" %>
+        <%= link_to t('nav.list_place'),
+            user_signed_in? ? new_dashboard_listing_path : new_user_session_path(redirect_to: new_dashboard_listing_path),
+            class: "wantu-btn wantu-btn--blue" %>
+      </div>
+    </div>
+    <%= image_tag 'cta_building.png', class: "wantu-cta__image", alt: t('home.cta_image_alt') %>
+  </div>
+</section>

@@ -1,0 +1,61 @@
+<div class="wantu-search">
+  <%= form_tag listings_path, method: :get, data: { controller: "search-tabs" } do %>
+    <%# Tabs: Rent / Buy / BnB / All — auto-submit on click %>
+    <div class="wantu-search__tabs">
+      <% Listing::NEED_TYPES.each do |type| %>
+        <input type="radio" class="btn-check" name="need_type"
+               id="tab_<%= type %>" value="<%= type %>" autocomplete="off"
+               data-action="change->search-tabs#submit"
+               <%= 'checked' if params[:need_type] == type %>>
+        <label class="wantu-tab"
+               for="tab_<%= type %>">
+          <%= t("home.need_type.#{type}") %>
+        </label>
+      <% end %>
+      <input type="radio" class="btn-check" name="need_type"
+             id="tab_all" value="" autocomplete="off"
+             data-action="change->search-tabs#submit"
+             <%= 'checked' if params[:need_type].blank? %>>
+      <label class="wantu-tab" for="tab_all">
+        <%= t('home.need_type.all', default: 'All') %>
+      </label>
+    </div>
+
+    <%# Row 1: price range + keyword + search button %>
+    <div class="wantu-search__row">
+      <%= number_field_tag :min_price, params[:min_price],
+          class: "wantu-input", placeholder: t('home.min_price') %>
+      <%= number_field_tag :max_price, params[:max_price],
+          class: "wantu-input", placeholder: t('home.max_price') %>
+      <%= text_field_tag :keyword, params[:keyword],
+          class: "wantu-input wantu-input--wide", placeholder: t('home.search_placeholder') %>
+      <%= submit_tag t('actions.search'), class: "wantu-btn wantu-btn--primary" %>
+    </div>
+
+    <%# Row 2: filters (3 columns, no location dropdown) %>
+    <div class="wantu-search__filters wantu-search__filters--three">
+      <%= select_tag :use_case,
+          options_for_select(
+            Listing::USE_CASES.map { |uc| [t("home.use_case_options.#{uc}"), uc] },
+            params[:use_case]
+          ),
+          include_blank: t('home.use_case_placeholder'), class: "wantu-input" %>
+      <%= select_tag :room_layout,
+          options_for_select(
+            Listing::ROOM_LAYOUTS.map { |rl| [t("home.room_layout.#{rl}"), rl] },
+            params[:room_layout]
+          ),
+          include_blank: t('home.room_layout_placeholder'), class: "wantu-input" %>
+      <%= select_tag :sort,
+          options_for_select(
+            [
+              [t('listings.sort.newest'), 'newest'],
+              [t('listings.sort.price_asc'), 'price_asc'],
+              [t('listings.sort.price_desc'), 'price_desc']
+            ],
+            params[:sort]
+          ),
+          include_blank: t('actions.filter'), class: "wantu-input" %>
+    </div>
+  <% end %>
+</div>

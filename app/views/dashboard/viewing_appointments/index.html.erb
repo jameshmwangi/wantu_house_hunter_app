@@ -1,0 +1,144 @@
+<% content_for :title, t('dashboard.bookings_title') %>
+
+<section class="wantu-dashboard-header">
+  <div class="container py-4">
+    <h2 class="font-serif"><%= t('dashboard.bookings_title') %></h2>
+    <p class="text-muted"><%= t('dashboard.bookings_subtitle') %></p>
+  </div>
+</section>
+
+<section class="container py-4">
+  <%# Status filter tabs %>
+  <ul class="nav nav-tabs mb-4 border-bottom-0 gap-4" style="border-bottom: 2px solid #000 !important;">
+    <li class="nav-item">
+      <%= link_to "#{t('dashboard.filter.all')} (#{@counts[:all]})",
+          dashboard_appointments_path,
+          class: nav_tab_class(active: params[:status].blank?),
+          style: nav_tab_style(active: params[:status].blank?) %>
+    </li>
+    <li class="nav-item">
+      <%= link_to "#{t('dashboard.filter.pending')} (#{@counts[:pending]})",
+          dashboard_appointments_path(status: 'pending'),
+          class: nav_tab_class(active: params[:status] == 'pending'),
+          style: nav_tab_style(active: params[:status] == 'pending') %>
+    </li>
+    <li class="nav-item">
+      <%= link_to "#{t('dashboard.filter.confirmed')} (#{@counts[:confirmed]})",
+          dashboard_appointments_path(status: 'confirmed'),
+          class: nav_tab_class(active: params[:status] == 'confirmed'),
+          style: nav_tab_style(active: params[:status] == 'confirmed') %>
+    </li>
+    <li class="nav-item">
+      <%= link_to "#{t('dashboard.filter.completed')} (#{@counts[:completed]})",
+          dashboard_appointments_path(status: 'completed'),
+          class: nav_tab_class(active: params[:status] == 'completed'),
+          style: nav_tab_style(active: params[:status] == 'completed') %>
+    </li>
+  </ul>
+
+  <% if @appointments.any? %>
+    <% @appointments.each do |appointment| %>
+      <div class="card mb-3 border-dark rounded-3" id="<%= dom_id(appointment) %>">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="card-title fw-bold font-monospace"><%= appointment.listing.title %></h5>
+              <p class="card-text mb-1 font-monospace text-muted">
+                <%= t('dashboard.booking_card.home_seeker', default: 'HomeSeeker') %>: <%= appointment.home_seeker.full_name %> &nbsp; <%= appointment.home_seeker.phone_number %>
+              </p>
+              <p class="card-text mb-1 font-monospace text-muted">
+                &#128197; <%= appointment.scheduled_at.in_time_zone('Nairobi').strftime('%b %d %Y at %I:%M %p') %>
+              </p>
+            </div>
+            <% status_bg = { 'pending' => 'warning', 'confirmed' => 'success', 'declined' => 'danger', 'completed' => 'primary' }[appointment.status] %>
+            <span class="badge bg-white border border-<%= status_bg %> text-<%= status_bg %> px-3 py-2 font-monospace">
+              <%= appointment.status.capitalize %>
+            </span>
+          </div>
+
+          <%# ── Confirmation Code (shown to home seeker when escrow is funded) ── %>
+          <% escrow = appointment.escrow_transaction %>
+          <% if escrow&.funded? && escrow.confirmation_code.present? && current_user.id == appointment.home_seeker_id %>
+            <div class="mt-3 p-3 rounded-3 border border-success" style="background:#f0fdf4;" id="confirmation-code-<%= appointment.id %>">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <p class="fw-bold text-success mb-1 small text-uppercase font-monospace">
+                    &#128274; <%= t('dashboard.booking_card.your_visit_code', default: 'Your Visit Confirmation Code') %>
+                  </p>
+                  <p class="font-monospace mb-1" style="font-size: 2rem; letter-spacing: 0.4rem; font-weight: 700;">
+                    <%= escrow.confirmation_code %>
+                  </p>
+                  <p class="text-muted small mb-0">
+                    <%= t('dashboard.booking_card.code_hint', default: 'Share this code with your agent after the visit to confirm it was completed.') %>
+                    <% if escrow.confirmation_code_expires_at %>
+                      <%= t('dashboard.booking_card.code_expires', default: 'Expires') %>
+                      <%= escrow.confirmation_code_expires_at.strftime('%b %d, %Y') %>.
+                    <% end %>
+                  </p>
+                </div>
+                <button type="button"
+                        class="btn btn-outline-success btn-sm font-monospace ms-3"
+                        id="copy-code-<%= appointment.id %>"
+                        onclick="navigator.clipboard.writeText('<%= escrow.confirmation_code %>').then(() => { this.textContent = 'Copied!'; setTimeout(() => { this.textContent = 'Copy'; }, 2000); })">
+                  Copy
+                </button>
+              </div>
+            </div>
+          <% end %>
+
+          <div class="mt-4 d-flex justify-content-between align-items-end">
+            <div>
+              <p class="card-text mb-0 font-monospace">
+                <span class="<%= appointment.fee_status == 'paid' ? 'text-success fw-bold' : 'text-muted fw-bold' %>">
+                  <%= t('dashboard.booking_card.viewing_fee', default: 'Viewing Fee') %>: Ksh <%= number_with_delimiter(appointment.fee_amount) %>
+                  <% if appointment.fee_status == 'paid' %>&#10003; <%= t('dashboard.booking_card.paid', default: 'Paid') %><% end %>
+                </span>
+              </p>
+              <% if appointment.status == 'completed' && appointment.payment_attempts.any? %>
+                <% last_payment = appointment.payment_attempts.last %>
+                <p class="card-text text-muted small mt-2 font-monospace">
+                  <%= t('dashboard.booking_card.payment_ref', default: 'Auto-generated Payment Ref') %>: <%= last_payment.payment_reference %> &nbsp; <%= t('dashboard.booking_card.fee_released', default: 'Fee released to agent') %>
+                </p>
+              <% end %>
+            </div>
+
+            <div class="d-flex gap-2">
+              <% if appointment.status == 'pending' %>
+                <%= button_to t('actions.confirm', default: 'Confirm'),
+                    dashboard_appointment_path(appointment, status_action: 'confirm'),
+                    method: :patch,
+                    class: "wantu-btn wantu-btn--primary px-4 py-1 font-monospace" %>
+                <%= button_to t('actions.decline', default: 'Decline'),
+                    dashboard_appointment_path(appointment, status_action: 'decline'),
+                    method: :patch,
+                    class: "btn btn-outline-danger px-4 py-1 font-monospace" %>
+              <% elsif appointment.status == 'confirmed' %>
+                <% if escrow&.funded? %>
+                  <%= form_with url: release_escrow_dashboard_appointment_path(appointment), method: :post, class: "d-flex gap-2" do |form| %>
+                    <%= form.text_field :confirmation_code, required: true, maxlength: 6, pattern: "[0-9]{6}", placeholder: "6-digit visit code", class: "form-control form-control-sm" %>
+                    <%= form.submit "Confirm visit & release", class: "btn btn-light border border-dark px-3 py-1 font-monospace fw-bold" %>
+                  <% end %>
+                <% else %>
+                  <span class="text-muted small">
+                    <%= t('dashboard.booking_card.awaiting_payment', default: 'Awaiting home seeker payment') %>
+                  </span>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <% end %>
+
+    <%= render "shared/pagination", collection: @appointments %>
+  <% else %>
+    <div class="text-center py-5">
+      <p><%= t('dashboard.no_bookings') %></p>
+    </div>
+  <% end %>
+
+  <div class="p-3 mt-4 border border-dark font-monospace fw-bold" style="background-color: #d1fae5;">
+    <%= t('dashboard.booking_fee_note', default: 'Viewing fee is released to agent once status is marked "Completed".') %>
+  </div>
+</section>

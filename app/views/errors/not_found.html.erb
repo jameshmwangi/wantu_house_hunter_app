@@ -1,0 +1,6 @@
+<% content_for :title, t('errors.404.title') %>
+<div class="text-center py-5">
+  <h1 class="display-1 fw-bold" style="color: var(--color-primary);">404</h1>
+  <p class="lead"><%= t('errors.not_found') %></p>
+  <%= link_to t('nav.home'), root_path, class: "btn btn-primary" %>
+</div>

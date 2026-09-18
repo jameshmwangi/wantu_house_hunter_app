@@ -1,0 +1,28 @@
+<% content_for :title, t('listings.index.title') %>
+
+<section class="wantu-search-results container">
+  <%# Search / Filter Bar %>
+  <%= render "shared/search_bar", locations: @locations %>
+
+  <%# Results Info %>
+  <div class="wantu-results-info">
+    <p><%= t('listings.index.found', count: @listings.total_count) %></p>
+  </div>
+
+  <% if @listings.any? %>
+    <%# Results Grid %>
+    <div class="wantu-properties-grid">
+      <% @listings.each do |listing| %>
+        <%= render "shared/property_card", listing: listing %>
+      <% end %>
+    </div>
+
+    <%# Pagination %>
+    <%= render "shared/pagination", collection: @listings %>
+  <% else %>
+    <div class="wantu-empty-state text-center py-5">
+      <p><%= t('listings.index.no_results') %></p>
+      <%= link_to t('actions.search'), listings_path, class: "wantu-btn wantu-btn--primary" %>
+    </div>
+  <% end %>
+</section>

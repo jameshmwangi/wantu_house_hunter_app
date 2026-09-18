@@ -1,0 +1,58 @@
+<% content_for :title, t('devise.sessions.new.sign_in') %>
+
+<div class="row justify-content-center mt-5">
+  <div class="col-md-5">
+    <div class="card shadow-sm" style="border-radius: var(--radius-md);">
+      <div class="card-body p-4">
+        <h1 class="text-center mb-4" style="font-family: var(--font-display);"><%= t('devise.sessions.new.sign_in') %></h1>
+
+        <%= form_for(resource, as: resource_name, url: session_path(resource_name)) do |f| %>
+          <% if params[:redirect_to].present? %>
+            <%= hidden_field_tag :redirect_to, params[:redirect_to] %>
+          <% end %>
+          <div class="mb-3">
+            <%= f.label :email, t('devise.labels.email'), class: "form-label" %>
+            <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "form-control" %>
+          </div>
+
+          <div class="mb-3">
+            <%= f.label :password, t('devise.labels.password'), class: "form-label" %>
+            <%= f.password_field :password, autocomplete: "current-password", class: "form-control" %>
+          </div>
+
+          <% if devise_mapping.rememberable? %>
+            <div class="form-check mb-3">
+              <%= f.check_box :remember_me, class: "form-check-input" %>
+              <%= f.label :remember_me, t('devise.labels.remember_me'), class: "form-check-label" %>
+            </div>
+          <% end %>
+
+          <div class="d-grid">
+            <%= f.submit t('devise.sessions.new.sign_in'), class: "btn btn-primary" %>
+          </div>
+        <% end %>
+
+
+        <div class="text-center mt-3">
+          <%= render "devise/shared/links" %>
+        </div>
+
+        <div class="guest-login mt-4 pt-3 border-top">
+          <p class="text-center text-muted small mb-2"><%= t('guest_login.heading') %></p>
+          <p class="text-center text-muted small mb-3"><%= t('guest_login.subheading') %></p>
+          <div class="d-grid gap-2">
+            <%= button_to t('guest_login.as_home_seeker'),
+                  guest_login_path(role: 'home_seeker'),
+                  class: "btn btn-outline-primary" %>
+            <%= button_to t('guest_login.as_agent'),
+                  guest_login_path(role: 'agent'),
+                  class: "btn btn-outline-primary" %>
+            <%= button_to t('guest_login.as_admin'),
+                  guest_login_path(role: 'admin'),
+                  class: "btn btn-outline-dark" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

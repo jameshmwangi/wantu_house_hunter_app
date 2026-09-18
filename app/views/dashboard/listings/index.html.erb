@@ -1,0 +1,76 @@
+<% content_for :title, t('dashboard.my_listings') %>
+
+<section class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><%= t('dashboard.my_listings') %></h2>
+    <%= link_to t('listings.new'), new_dashboard_listing_path, class: "wantu-btn wantu-btn--primary" %>
+  </div>
+
+  <% if @listings.any? %>
+    <div class="table-responsive">
+      <table class="table wantu-table">
+        <thead>
+          <tr>
+            <th><%= t('listings.fields.title') %></th>
+            <th><%= t('listings.fields.status') %></th>
+            <th><%= t('listings.fields.price') %></th>
+            <th><%= t('listings.fields.location') %></th>
+            <th><%= t('actions.edit') %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @listings.each do |listing| %>
+            <tr id="<%= dom_id(listing) %>">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <% if listing.property_images.any? && listing.property_images.first.image.attached? %>
+                    <%= image_tag listing.property_images.first.image,
+                        class: "rounded", style: "width:48px;height:48px;object-fit:cover;",
+                        alt: listing.title %>
+                  <% end %>
+                  <%= link_to listing.title, listing_path(listing) %>
+                </div>
+              </td>
+              <td>
+                <span class="badge bg-<%= listing.status == 'published' ? 'success' : listing.status == 'draft' ? 'secondary' : 'warning' %>">
+                  <%= t("listings.status.#{listing.status}") %>
+                </span>
+              </td>
+              <td>Ksh <%= number_with_delimiter(listing.price) %>/<%= listing.price_period %></td>
+              <td><%= listing.location.area_name %></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <%= link_to t('actions.edit'), edit_dashboard_listing_path(listing), class: "btn btn-sm btn-outline-primary" %>
+                  <% if listing.status == 'draft' || listing.status == 'hidden' %>
+                    <%= button_to t('listings.status.published'),
+                        publish_dashboard_listing_path(listing),
+                        method: :patch,
+                        class: "btn btn-sm btn-success" %>
+                  <% end %>
+                  <% if listing.status == 'published' %>
+                    <%= button_to t('listings.status.hidden'),
+                        hide_dashboard_listing_path(listing),
+                        method: :patch,
+                        class: "btn btn-sm btn-warning" %>
+                  <% end %>
+                  <%= button_to t('actions.delete'),
+                      dashboard_listing_path(listing),
+                      method: :delete,
+                      class: "btn btn-sm btn-outline-danger",
+                      data: { turbo_confirm: t('prompts.confirm_delete') } %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <%= render "shared/pagination", collection: @listings %>
+  <% else %>
+    <div class="text-center py-5">
+      <p><%= t('dashboard.no_listings') %></p>
+      <%= link_to t('listings.new'), new_dashboard_listing_path, class: "wantu-btn wantu-btn--primary" %>
+    </div>
+  <% end %>
+</section>

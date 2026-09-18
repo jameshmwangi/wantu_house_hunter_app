@@ -1,0 +1,84 @@
+<% content_for :title, t('users.account') %>
+
+<section class="container py-4">
+  <%# Avatar and name header %>
+  <div class="text-center mb-4">
+    <div class="wantu-avatar wantu-avatar--lg mx-auto mb-3 <%= @user.avatar_role_class %>">
+      <%= avatar_for(@user) %>
+    </div>
+    <h2 class="font-serif"><%= @user.full_name %></h2>
+    <p class="text-muted"><%= t("roles.#{@user.role}") %></p>
+  </div>
+
+  <% if @user.property_manager? %>
+    <div class="text-center mb-4">
+      <%= link_to t('dashboard.title'), dashboard_path, class: "wantu-btn wantu-btn--primary px-4 py-2 fs-5" %>
+    </div>
+  <% end %>
+
+  <%# Profile details %>
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-sm-6">
+              <small class="text-muted text-uppercase"><%= t('devise.labels.email') %></small>
+              <p><%= @user.email %></p>
+            </div>
+            <div class="col-sm-6">
+              <small class="text-muted text-uppercase"><%= t('devise.labels.phone_number', default: 'PHONE') %></small>
+              <p><%= @user.phone_number.presence || "—" %></p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-6">
+              <small class="text-muted text-uppercase"><%= t('users.role') %></small>
+              <p><%= t("roles.#{@user.role}") %></p>
+            </div>
+            <div class="col-sm-6">
+              <small class="text-muted text-uppercase"><%= t('users.member_since') %></small>
+              <p><%= @user.created_at.in_time_zone('Nairobi').strftime('%b %Y') %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Bio Section %>
+      <h4 class="mb-3 font-serif">BIO</h4>
+      <div class="card mb-4">
+        <div class="card-body">
+          <p class="mb-0 text-muted"><%= @user.bio.present? ? @user.bio : 'No description provided.' %></p>
+        </div>
+      </div>
+
+      <%# Action buttons %>
+      <div class="d-grid gap-2 mb-4">
+        <%= link_to t('users.edit_profile'), edit_account_path, class: "wantu-btn wantu-btn--primary" %>
+        <%= link_to t('users.change_password'), '#', class: "wantu-btn wantu-btn--outline d-none" %>
+        <%= button_to t('nav.logout'), destroy_user_session_path, method: :delete, class: "btn btn-outline-danger w-100 py-2" %>
+      </div>
+
+      <%# Viewing appointments (home seeker) %>
+      <% if @appointments.any? %>
+        <h4 class="mb-3 font-serif"><%= t('users.my_appointments', default: 'My Viewing Appointments') %></h4>
+        <% @appointments.each do |appointment| %>
+          <div class="card mb-2">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <strong><%= appointment.listing.title %></strong>
+                <p class="mb-0 small text-muted">
+                  &#128197; <%= appointment.scheduled_at.in_time_zone('Nairobi').strftime('%a %d %b %Y, %I:%M %p') %>
+                  <br><%= t('users.agent_label') %>: <%= appointment.agent.full_name %>
+                </p>
+              </div>
+              <span class="badge bg-<%= { 'pending' => 'warning', 'confirmed' => 'info', 'declined' => 'danger', 'completed' => 'success' }[appointment.status] %>">
+                <%= appointment.status.capitalize %>
+              </span>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,9 @@
+<h2><%= t('mailers.listing_published.heading') %></h2>
+<p><%= t('mailers.listing_published.greeting', name: @user.full_name) %></p>
+<p><strong><%= @listing.title %></strong> <%= t('mailers.listing_published.body') %></p>
+<ul>
+  <li><%= t('listings.fields.location') %>: <%= @listing.location.area_name %>, <%= @listing.location.county %></li>
+  <li><%= t('listings.fields.price') %>: Ksh <%= number_with_delimiter(@listing.price) %> / <%= @listing.price_period %></li>
+  <li><%= t('viewing_appointments.fields.fee') %>: Ksh <%= number_with_delimiter(@listing.viewing_fee) %></li>
+</ul>
+<p><%= link_to t('mailers.listing_published.cta'), listing_url(@listing) %></p>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= content_for?(:title) ? yield(:title) : t('app.name') %></title>
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= render 'application/favicon' %>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <%= stylesheet_link_tag "application.bootstrap", media: "all", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <%= render 'shared/pc_navbar' %>
+    <%= render 'shared/mobile_top_nav_tabs' %>
+    <%= render 'shared/flash' %>
+
+    <main class="main-content">
+      <%= yield %>
+    </main>
+
+    <%= render 'shared/footer' %>
+    <%= render 'shared/mobile_bottom_nav' %>
+  </body>
+</html>

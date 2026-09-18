@@ -1,0 +1,6 @@
+<nav class="top-tab-strip">
+  <%= link_to "Rent", listings_path(need_type: "rent"), class: ("active" if params[:need_type] == "rent") %>
+  <%= link_to "Buy", listings_path(need_type: "buy"), class: ("active" if params[:need_type] == "buy") %>
+  <%= link_to "BnB", listings_path(need_type: "bnb"), class: ("active" if params[:need_type] == "bnb") %>
+  <%= link_to "Contact Us", "https://jamesportfo1io.netlify.app", target: "_blank", rel: "noopener noreferrer", class: ("active" if false) %>
+</nav>

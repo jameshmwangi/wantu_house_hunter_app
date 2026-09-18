@@ -1,0 +1,59 @@
+<div class="wantu-property-card" id="<%= dom_id(listing) %>">
+  <%# Image %>
+  <% if listing.property_images.any? && listing.property_images.first.image.attached? %>
+    <%= image_tag listing.property_images.first.image,
+        class: "wantu-property-card__img",
+        alt: listing.title %>
+  <% else %>
+    <div class="wantu-property-card__img wantu-property-card__img--placeholder">
+      <span><%= t('listings.no_image') %></span>
+    </div>
+  <% end %>
+
+  <div class="wantu-property-card__body">
+    <%# Badge %>
+    <span class="wantu-badge wantu-badge--<%= listing.need_type %>">
+      <%= t("listings.need_type.#{listing.need_type}") %>
+    </span>
+
+    <%# Price %>
+    <div class="wantu-property-card__price">
+      Ksh <%= number_with_delimiter(listing.price) %><span class="wantu-property-card__period">/<%= listing.price_period %></span>
+    </div>
+
+    <%# Title %>
+    <div class="wantu-property-card__title"><%= listing.title %></div>
+
+    <%# Meta %>
+    <div class="wantu-property-card__meta">
+      <%= listing.room_layout.humanize %> &nbsp; <%= listing.location.area_name %>
+    </div>
+
+    <%# Actions %>
+    <div class="wantu-property-card__actions">
+      <%= link_to listing_path(listing), class: "wantu-btn-view" do %>
+        <%= t('listings.view_property') %> <span class="wantu-btn-view__arrow">&#8599;</span>
+      <% end %>
+      <% if user_signed_in? %>
+        <% fav_id = @favourite_ids_by_listing[listing.id] %>
+        <% if fav_id %>
+          <%= button_to favourite_path(fav_id), method: :delete,
+              class: "wantu-btn-fav wantu-btn-fav--active",
+              form: { data: { turbo_confirm: nil } } do %>
+            &#9829;
+          <% end %>
+        <% else %>
+          <%= button_to favourites_path(listing_id: listing.id), method: :post,
+              class: "wantu-btn-fav" do %>
+            &#9825;
+          <% end %>
+        <% end %>
+      <% else %>
+        <%= button_to favourites_path(listing_id: listing.id), method: :post,
+            class: "wantu-btn-fav", aria: { label: t('favourites.add') } do %>
+          &#9825;
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</div>

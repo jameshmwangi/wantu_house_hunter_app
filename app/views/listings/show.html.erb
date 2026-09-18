@@ -1,0 +1,195 @@
+<% content_for :title, "#{@listing.title} - #{t('app.name')}" %>
+
+<section class="wantu-property-detail container">
+  <!-- Breadcrumb -->
+  <nav class="wantu-breadcrumb">
+    <%= link_to @listing.location.country, listings_path(country: @listing.location.country), class: "wantu-breadcrumb__link" %> &rsaquo;
+    <%= link_to @listing.location.county, listings_path(county: @listing.location.county), class: "wantu-breadcrumb__link" %> &rsaquo;
+    <% if @listing.location.sub_county.present? %>
+      <%= link_to @listing.location.sub_county, listings_path(sub_county: @listing.location.sub_county), class: "wantu-breadcrumb__link" %> &rsaquo;
+    <% end %>
+    <%= link_to @listing.location.area_name, listings_path(area_name: @listing.location.area_name), class: "wantu-breadcrumb__link" %> &rsaquo;
+    <span><%= @listing.building_name %></span>
+  </nav>
+
+  <!-- Hero Image + Thumbnails -->
+  <div class="wantu-gallery mb-4" data-controller="gallery">
+    <% if @images.any? %>
+      <div class="wantu-gallery__main" data-gallery-open="0" style="cursor: pointer;">
+        <%= image_tag @images.first.image, class: "wantu-gallery__main-img", alt: @listing.title %>
+      </div>
+      <% if @images.size > 1 %>
+        <div class="wantu-gallery__thumbnails">
+          <% visible_thumbs = @images.drop(1).first(3) %>
+          <% remaining = @images.size - 1 - visible_thumbs.size %>
+          <% visible_thumbs.each_with_index do |pi, idx| %>
+            <div data-gallery-open="<%= idx + 1 %>" style="cursor: pointer;">
+              <%= image_tag pi.image, class: "wantu-gallery__thumb", alt: @listing.title %>
+            </div>
+          <% end %>
+          <% if remaining > 0 %>
+            <div class="wantu-gallery__thumb wantu-gallery__thumb--more" data-gallery-open="<%= visible_thumbs.size + 1 %>" style="cursor: pointer;">
+              <span>+<%= remaining %> <%= t('listings.show.more_photos') %></span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Photo Gallery Modal -->
+      <div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+          <div class="modal-content" style="background: #000; border: none;">
+            <div class="modal-header border-0 pb-0">
+              <span class="text-white small" id="galleryCounter">1 / <%= @images.size %></span>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 position-relative d-flex align-items-center justify-content-center" style="min-height: 60vh;">
+              <button type="button" class="wantu-gallery-nav wantu-gallery-nav--prev" id="galleryPrev">&lsaquo;</button>
+              <% @images.each_with_index do |pi, idx| %>
+                <div class="wantu-gallery-slide" data-slide="<%= idx %>" style="<%= 'display:none;' unless idx == 0 %>">
+                  <%= image_tag pi.image, class: "wantu-gallery-slide__img", alt: "#{@listing.title} - #{idx + 1}" %>
+                </div>
+              <% end %>
+              <button type="button" class="wantu-gallery-nav wantu-gallery-nav--next" id="galleryNext">&rsaquo;</button>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center gap-2 flex-wrap" id="galleryThumbs">
+              <% @images.each_with_index do |pi, idx| %>
+                <%= image_tag pi.image, class: "wantu-gallery-thumb-nav #{'active' if idx == 0}", data: { thumb: idx }, alt: "Thumbnail #{idx + 1}" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% else %>
+      <div class="wantu-gallery__placeholder">
+        <span><%= t('listings.no_image') %></span>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Action Buttons Row -->
+  <div class="wantu-property-detail__action-row">
+    <span class="wantu-btn wantu-btn--primary">
+      Ksh <%= number_with_delimiter(@listing.price) %> / <%= @listing.price_period %>
+    </span>
+    <%= link_to t('listings.show.schedule_visit'),
+        new_listing_viewing_appointment_path(@listing),
+        class: "wantu-btn wantu-btn--outline" %>
+    <button type="button" class="wantu-btn wantu-btn--outline" onclick="navigator.share && navigator.share({title: '<%= j @listing.title %>', url: window.location.href})">
+      <%= t('listings.show.share') %>
+    </button>
+    <% if user_signed_in? %>
+      <% if @favourite %>
+        <%= button_to favourite_path(@favourite), method: :delete, class: "wantu-btn-fav wantu-btn-fav--active" do %>
+          &#9829;
+        <% end %>
+      <% else %>
+        <%= button_to favourites_path, params: { listing_id: @listing.id }, class: "wantu-btn-fav" do %>
+          &#9825;
+        <% end %>
+      <% end %>
+    <% else %>
+      <%= link_to new_user_session_path, class: "wantu-btn-fav" do %>
+        &#9825;
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Property Title and Tags -->
+  <div class="mb-4">
+    <h1 class="wantu-property-detail__title"><%= @listing.building_name.presence || @listing.title %>, <%= @listing.location.area_name %></h1>
+    <div class="wantu-property-detail__badges">
+      <span class="wantu-badge wantu-badge--<%= @listing.need_type %>">
+        <%= t("listings.need_type.#{@listing.need_type}") %>
+      </span>
+      <span class="wantu-badge"><%= @listing.room_layout.humanize %></span>
+    </div>
+  </div>
+
+  <!-- Property Description -->
+  <div class="wantu-property-detail__description">
+    <%= simple_format(@listing.description) %>
+  </div>
+
+  <!-- Property Comments Section -->
+  <div class="wantu-property-detail__comments">
+    <h3><%= t('listings.show.property_comments') %></h3>
+
+    <div class="wantu-comment-form-box">
+      <% if user_signed_in? %>
+        <%= form_with url: listing_property_comments_path(@listing), scope: :property_comment, class: "wantu-comment-form", data: { controller: "comment-form", comment_form_listing_id_value: @listing.id } do |f| %>
+          <%= f.text_area :body,
+              placeholder: t('property_comments.fields.body'),
+              rows: 2,
+              class: "form-control",
+              data: { comment_form_target: "body" } %>
+          <div class="wantu-comment-form__actions">
+            <%= f.submit t('listings.show.comment_btn'), class: "wantu-btn wantu-btn--outline", data: { comment_form_target: "submit" } %>
+          </div>
+        <% end %>
+      <% else %>
+        <p class="text-center mb-2"><%= t('property_comments.login_to_comment', default: 'Please log in to leave a comment.') %></p>
+        <div class="text-center">
+          <%= link_to t('nav.login'), new_user_session_path, class: "wantu-btn wantu-btn--primary" %>
+        </div>
+      <% end %>
+
+      <!-- Existing Comments -->
+      <div id="comments-list">
+        <% @top_level_comments.first(2).each do |comment| %>
+          <%= render "listings/comment", comment: comment, listing: @listing %>
+        <% end %>
+      </div>
+
+      <% if @top_level_comments.size > 2 %>
+        <div id="comments-hidden" style="display: none;">
+          <% @top_level_comments.drop(2).each do |comment| %>
+            <%= render "listings/comment", comment: comment, listing: @listing %>
+          <% end %>
+        </div>
+        <a href="#" class="wantu-link d-block mt-3" data-controller="toggle-comments" data-action="click->toggle-comments#toggle"
+           data-toggle-comments-target-value="comments-hidden"
+           data-show-text="<%= t('listings.show.see_all_comments') %> ›" data-hide-text="<%= t('listings.show.hide_comments', default: 'Hide comments') %> ›">
+          <%= t('listings.show.see_all_comments') %> &rsaquo;
+        </a>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Bottom Two Column Layout -->
+  <div class="wantu-property-detail__bottom row">
+    <!-- Left: Contact Agent -->
+    <div class="col-md-6">
+      <h3><%= t('listings.show.contact_agent') %></h3>
+      <div class="wantu-agent-card">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="wantu-agent-card__avatar <%= @listing.user.avatar_role_class %>">
+            <%= avatar_for(@listing.user, img_class: 'wantu-agent-card__avatar__img') %>
+          </div>
+          <div>
+            <%= link_to @listing.user.full_name, agent_profile_path(@listing.user), class: "text-decoration-none fw-medium" %>
+            <p class="mb-0 small text-muted">
+              <%= t("roles.#{@listing.user.role}") %> &middot;
+              <%= @agent_listing_count %>
+              <%= t('dashboard.my_listings') %>
+            </p>
+          </div>
+        </div>
+        <%= link_to t('listings.show.schedule_visit'),
+            new_listing_viewing_appointment_path(@listing),
+            class: "wantu-btn wantu-btn--outline wantu-btn--block" %>
+      </div>
+    </div>
+
+    <!-- Right: List Property CTA -->
+    <div class="col-md-6">
+      <div class="wantu-cta-panel">
+        <h4><%= t('listings.show.cta_title') %></h4>
+        <p><%= t('listings.show.cta_subtitle') %></p>
+        <%= link_to t('nav.list_place'),
+            user_signed_in? ? new_dashboard_listing_path : new_user_session_path(redirect_to: new_dashboard_listing_path),
+            class: "wantu-btn wantu-btn--primary" %>
+      </div>
+    </div>
+  </div>
+</section>

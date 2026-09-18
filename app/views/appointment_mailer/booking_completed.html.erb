@@ -1,0 +1,5 @@
+<h2><%= t('mailers.booking_completed.heading') %></h2>
+<p><%= t('mailers.booking_completed.greeting', name: @seeker.full_name) %></p>
+<p><%= t('mailers.booking_completed.body', title: @listing.title) %></p>
+<p><%= link_to t('mailers.booking_completed.review_cta'), new_agent_review_url(agent_id: @agent.id) %></p>
+<p><%= link_to t('mailers.booking_completed.browse_cta'), listings_url %></p>

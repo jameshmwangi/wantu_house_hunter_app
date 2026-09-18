@@ -1,0 +1,4 @@
+<h2><%= t('mailers.welcome.greeting', name: @user.full_name.split.first) %></h2>
+<p><%= t('mailers.welcome.body') %></p>
+<p><%= t('mailers.welcome.role_info', role: t("roles.#{@user.role}")) %></p>
+<p><%= link_to t('mailers.welcome.cta'), root_url %></p>

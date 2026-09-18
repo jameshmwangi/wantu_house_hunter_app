@@ -1,0 +1,62 @@
+:root {
+  /* Brand */
+  --primary-green:    #00C875;
+  --primary-dark:     #1F2937;
+  --text-gray:        #6B7280;
+  --border-color:     #E5E7EB;
+  --bg-light:         #F9FAFB;
+  --bg-blue-soft:     #E6F0F9;
+  --white:            #FFFFFF;
+
+  /* Backwards compat aliases */
+  --color-primary:        #00C875;
+  --color-primary-dark:   #059652;
+  --color-primary-light:  #DCFCE7;
+  --color-black:          #111827;
+  --color-white:          #FFFFFF;
+  --color-grey-50:        #F9FAFB;
+  --color-grey-100:       #F3F4F6;
+  --color-grey-400:       #9CA3AF;
+  --color-grey-600:       #4B5563;
+
+  /* Blue — CTA buttons */
+  --color-accent-blue:      #3B82F6;
+  --color-accent-blue-dark: #2563EB;
+
+  /* Red — favourites / danger */
+  --color-accent-red:       #EF4444;
+
+  /* Listing type badge tokens */
+  --tag-rent-bg:     #E6F4EA;
+  --tag-rent-text:   #137333;
+  --tag-rent-border: #137333;
+  --tag-buy-bg:      #FEF7E0;
+  --tag-buy-text:    #B06000;
+  --tag-buy-border:  #B06000;
+  --tag-bnb-bg:      #E8F0FE;
+  --tag-bnb-text:    #1A73E8;
+  --tag-bnb-border:  #1A73E8;
+
+  /* CTA section background */
+  --color-bg-cta: #E6F0F9;
+
+  /* Typography */
+  --font-main: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  /* Keep old aliases for any views that use them */
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  /* Spacing */
+  --space-1: 4px;   --space-2: 8px;    --space-3: 12px;
+  --space-4: 16px;  --space-6: 24px;   --space-8: 32px;
+  --space-12: 48px; --space-16: 64px;
+
+  /* Radii */
+  --radius-sm: 6px;  --radius-md: 12px;
+  --radius-lg: 20px; --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-card:       0 2px 12px rgba(0,0,0,0.08);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.14);
+}

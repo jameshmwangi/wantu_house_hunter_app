@@ -1,0 +1,174 @@
+<% content_for :title, t('dashboard.title') %>
+
+<section class="wantu-dashboard-header">
+  <div class="container py-4">
+    <h2 class="font-serif"><%= t('dashboard.greeting', name: current_user.full_name.split.first) %> &#x1F44B;</h2>
+    <p class="text-muted"><%= t('dashboard.subtitle') %></p>
+  </div>
+</section>
+
+<section class="container py-4">
+  <%# Stats cards %>
+  <div class="row g-4 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4">
+        <div class="card-body text-center py-4">
+          <div class="font-serif text-success" style="font-size: 2.5rem; line-height: 1;"><%= @active_listings_count %></div>
+          <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.active_listings') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4">
+        <div class="card-body text-center py-4">
+          <div class="font-serif text-success" style="font-size: 2.5rem; line-height: 1;"><%= @booking_requests_count %></div>
+          <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.booking_requests') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4">
+        <div class="card-body text-center py-4">
+          <div class="font-serif text-success" style="font-size: 2.5rem; line-height: 1;">Ksh <%= number_with_delimiter(@fees_this_month) %></div>
+          <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.fees_this_month') %></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100 border rounded-4">
+        <div class="card-body text-center py-4">
+          <div class="font-serif text-success" style="font-size: 2.5rem; line-height: 1;"><%= @avg_rating %> <span class="fs-4">&#9733;</span></div>
+          <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.avg_rating') %></div>
+        </div>
+      </div>
+    </div>
+
+    <%# Escrow balance widgets — KES %>
+    <% if @available_kes > 0 || @available_ugx > 0 %>
+      <% if @available_kes > 0 %>
+        <div class="col-6 col-md-3" id="dashboard-kes-balance-card">
+          <div class="card shadow-sm h-100 border border-success rounded-4">
+            <div class="card-body text-center py-4">
+              <div class="font-serif text-success" style="font-size: 1.8rem; line-height: 1;">
+                Ksh&nbsp;<%= number_with_delimiter(@available_kes / 100.0, precision: 2) %>
+              </div>
+              <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.available_kes', default: 'Available KES') %></div>
+              <%= link_to t('withdrawals.withdraw_now', default: 'Withdraw →'), dashboard_withdrawals_path,
+                    class: "btn btn-sm btn-outline-success mt-2 font-monospace" %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+      <% if @available_ugx > 0 %>
+        <div class="col-6 col-md-3" id="dashboard-ugx-balance-card">
+          <div class="card shadow-sm h-100 border border-success rounded-4">
+            <div class="card-body text-center py-4">
+              <div class="font-serif text-success" style="font-size: 1.8rem; line-height: 1;">
+                UGX&nbsp;<%= number_with_delimiter(@available_ugx / 100.0, precision: 0) %>
+              </div>
+              <div class="text-uppercase fw-bold text-muted small mt-2"><%= t('dashboard.stats.available_ugx', default: 'Available UGX') %></div>
+              <%= link_to t('withdrawals.withdraw_now', default: 'Withdraw →'), dashboard_withdrawals_path,
+                    class: "btn btn-sm btn-outline-success mt-2 font-monospace" %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <%# Quick-action bar %>
+  <div class="d-flex gap-2 mb-5" id="dashboard-quick-actions">
+    <%= link_to t('withdrawals.title', default: 'Withdrawals'), dashboard_withdrawals_path,
+          class: "wantu-btn wantu-btn--outline font-monospace" %>
+    <%= link_to t('payout_accounts.title', default: 'Payout Accounts'), dashboard_payout_accounts_path,
+          class: "wantu-btn wantu-btn--outline font-monospace" %>
+  </div>
+
+  <%# Tabs %>
+  <ul class="nav nav-tabs mb-4 border-bottom-0 gap-3">
+    <li class="nav-item">
+      <%= link_to t('dashboard.tabs.my_listings'), dashboard_path,
+          class: nav_tab_class(active: params[:tab] != 'bookings'),
+          style: nav_tab_style(active: params[:tab] != 'bookings') %>
+    </li>
+    <li class="nav-item">
+      <%= link_to t('dashboard.tabs.booking_requests'), dashboard_appointments_path,
+          class: nav_tab_class(active: params[:tab] == 'bookings'),
+          style: nav_tab_style(active: params[:tab] == 'bookings') %>
+    </li>
+  </ul>
+
+  <%# My Listings tab content %>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <%= link_to t('listings.new'), new_dashboard_listing_path, class: "wantu-btn wantu-btn--primary" %>
+  </div>
+
+  <% if @listings.any? %>
+    <div class="table-responsive">
+      <table class="table wantu-table">
+        <thead>
+          <tr>
+            <th><%= t('listings.fields.title') %></th>
+            <th><%= t('listings.fields.need_type') %></th>
+            <th><%= t('listings.fields.location') %></th>
+            <th><%= t('listings.fields.price') %></th>
+            <th><%= t('listings.fields.status') %></th>
+            <th><%= t('actions.edit') %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @listings.each do |listing| %>
+            <tr id="<%= dom_id(listing) %>">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <% if listing.property_images.any? && listing.property_images.first.image.attached? %>
+                    <%= image_tag listing.property_images.first.image,
+                        class: "rounded", style: "width:48px;height:48px;object-fit:cover;",
+                        alt: listing.title %>
+                  <% end %>
+                  <%= link_to listing.title, listing_path(listing) %>
+                </div>
+              </td>
+              <td><%= t("listings.need_type.#{listing.need_type}") %> &middot; <%= listing.room_layout.humanize %></td>
+              <td><%= listing.location.area_name %></td>
+              <td>Ksh <%= number_with_delimiter(listing.price) %>/<%= listing.price_period %></td>
+              <td>
+                <%= listing_status_badge(listing) %>
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <%= link_to t('listings.view_property'), listing_path(listing), class: "btn btn-sm btn-outline-secondary" %>
+                  <%= link_to t('actions.edit'), edit_dashboard_listing_path(listing), class: "btn btn-sm btn-outline-primary" %>
+                  <% if listing.status == 'draft' || listing.status == 'hidden' %>
+                    <%= button_to t('listings.status.published'),
+                        publish_dashboard_listing_path(listing),
+                        method: :patch,
+                        class: "btn btn-sm btn-success" %>
+                  <% end %>
+                  <% if listing.status == 'published' %>
+                    <%= button_to t('listings.status.hidden'),
+                        hide_dashboard_listing_path(listing),
+                        method: :patch,
+                        class: "btn btn-sm btn-warning" %>
+                  <% end %>
+                  <%= button_to t('actions.delete'),
+                      dashboard_listing_path(listing),
+                      method: :delete,
+                      class: "btn btn-sm btn-outline-danger",
+                      data: { turbo_confirm: t('prompts.confirm_delete') } %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <%= render "shared/pagination", collection: @listings %>
+  <% else %>
+    <div class="text-center py-5">
+      <p><%= t('dashboard.no_listings') %></p>
+      <%= link_to t('listings.new'), new_dashboard_listing_path, class: "wantu-btn wantu-btn--primary" %>
+    </div>
+  <% end %>
+</section>

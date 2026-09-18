@@ -1,0 +1,73 @@
+<% content_for :title, "#{@agent.full_name} - #{t('users.agent_profile')}" %>
+
+<section class="container py-4">
+  <%# Agent header card %>
+  <div class="card mb-5 border-dark rounded-3">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center gap-4 mb-4">
+        <div class="wantu-agent-card__avatar wantu-agent-card__avatar--lg <%= @agent.avatar_role_class %>">
+          <%= avatar_for(@agent, img_class: 'wantu-agent-card__avatar__img') %>
+        </div>
+        <div>
+          <h2 class="mb-1 font-serif fw-bold"><%= @agent.full_name %></h2>
+          <p class="text-muted mb-0 font-monospace text-uppercase small"><%= t("roles.#{@agent.role}") %> &nbsp;&nbsp;&nbsp; <%= @agent.listings.published.count %> <%= t('dashboard.my_listings', default: 'Listings') %></p>
+        </div>
+      </div>
+      <hr class="border-dark opacity-100 my-4">
+      <p class="mb-0 font-monospace small lh-lg"><%= t('accounts.bio_label', default: 'Bio') %>: <%= @agent.bio.presence || t('accounts.no_bio', default: 'No bio provided.') %></p>
+    </div>
+  </div>
+
+  <%# Ratings & Reviews section %>
+  <div class="mb-5">
+    <h4 class="font-serif fw-bold mb-4"><%= t('agent_reviews.ratings_and_reviews', default: 'Ratings & Reviews') %></h4>
+    <div class="d-flex align-items-end gap-5 mb-5">
+      <div class="text-center">
+        <div class="display-3 fw-bold text-success font-serif lh-1 mb-2"><%= number_with_precision(@avg_rating, precision: 1) || '0.0' %></div>
+        <div class="text-warning fs-5 lh-1 mb-1">
+          <% (@avg_rating || 0).floor.times do %>&#9733;<% end %>
+          <% (5 - (@avg_rating || 0).floor).times do %><span class="text-muted">&#9733;</span><% end %>
+        </div>
+        <small class="text-muted d-block font-monospace"><%= t('agent_reviews.rating_count', count: @review_count, default: "#{@review_count} ratings") %></small>
+      </div>
+      <% if user_signed_in? && current_user.role != 'agent' %>
+        <div class="mb-1">
+          <%= link_to t('agent_reviews.write_review', default: 'Write a Review'), new_agent_review_path(agent_id: @agent.id), class: "btn btn-outline-dark px-3 py-1 font-monospace fw-bold rounded-2" %>
+        </div>
+      <% end %>
+    </div>
+
+    <% @reviews.first(2).each do |review| %>
+      <%= render "agents/review_card", review: review %>
+    <% end %>
+
+    <% if @reviews.size > 2 %>
+      <div id="reviews-hidden" style="display: none;">
+        <% @reviews.drop(2).each do |review| %>
+          <%= render "agents/review_card", review: review %>
+        <% end %>
+      </div>
+      <a href="#" class="text-decoration-none font-monospace small text-primary d-block mt-3"
+         data-controller="toggle-comments" data-action="click->toggle-comments#toggle"
+         data-toggle-comments-target-value="reviews-hidden"
+         data-show-text="<%= t('agent_reviews.see_all', default: 'See all agent reviews →') %>" data-hide-text="<%= t('agent_reviews.hide_reviews', default: 'Hide reviews →') %>">
+        <%= t('agent_reviews.see_all', default: 'See all agent reviews →') %>
+      </a>
+    <% end %>
+  </div>
+
+  <%# Agent Listings %>
+  <h4 class="font-serif fw-bold mb-4"><%= t('agent_reviews.agent_listings', default: 'Agent Listings') %></h4>
+  <% if @listings.any? %>
+    <div class="row g-4 mt-2">
+      <% @listings.each do |listing| %>
+        <div class="col-sm-6 col-md-4">
+          <%= render "shared/property_card", listing: listing %>
+        </div>
+      <% end %>
+    </div>
+    <%= render "shared/pagination", collection: @listings %>
+  <% else %>
+    <p class="text-muted"><%= t('dashboard.no_listings') %></p>
+  <% end %>
+</section>

@@ -1,0 +1,101 @@
+<% content_for :title, t('viewing_appointments.title') %>
+
+<section class="container py-4">
+  <h2 class="font-serif mb-4"><%= t('viewing_appointments.title') %></h2>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <%# Property summary card %>
+      <div class="card mb-4">
+        <div class="card-body d-flex align-items-center gap-3">
+          <% if @listing.property_images.any? && @listing.property_images.first.image.attached? %>
+            <%= image_tag @listing.property_images.first.image,
+                class: "rounded", style: "width:80px;height:80px;object-fit:cover;",
+                alt: @listing.title %>
+          <% end %>
+          <div>
+            <span class="wantu-badge wantu-badge--<%= @listing.need_type %>">
+              <%= t("listings.need_type.#{@listing.need_type}") %>
+            </span>
+            <h5 class="mb-0"><%= @listing.title %>, <%= @listing.location.area_name %></h5>
+            <p class="mb-0 text-muted"><%= @listing.room_layout.humanize %> &middot; <%= @listing.location.sub_county %></p>
+            <span class="text-success fw-bold">Ksh <%= number_with_delimiter(@listing.price) %>/<%= @listing.price_period %></span>
+          </div>
+        </div>
+      </div>
+
+      <%# Listing owner card %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <small class="text-muted text-uppercase"><%= t('viewing_appointments.listing_owner') %></small>
+          <div class="d-flex align-items-center gap-3 mt-2">
+            <div class="wantu-avatar <%= @listing.user.avatar_role_class %>">
+              <%= avatar_for(@listing.user) %>
+            </div>
+            <div>
+              <strong><%= @listing.user.full_name %></strong>
+              <p class="mb-0 text-muted"><%= t("roles.#{@listing.user.role}") %> &middot; <%= @listing.user.listings.published.count %> <%= t('dashboard.my_listings') %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Booking form %>
+      <%= form_with model: @appointment, url: listing_viewing_appointments_path(@listing), class: "needs-validation" do |f| %>
+        <div class="mb-4">
+          <h5><%= t('viewing_appointments.fields.scheduled_at') %></h5>
+          <p class="text-muted"><%= t('viewing_appointments.datetime_hint') %></p>
+          <%= f.datetime_local_field :scheduled_at,
+              class: "form-control #{'is-invalid' if @appointment.errors[:scheduled_at].any?}",
+              min: 1.day.from_now.strftime('%Y-%m-%dT%H:%M') %>
+          <% if @appointment.errors[:scheduled_at].any? %>
+            <div class="invalid-feedback d-block"><%= @appointment.errors[:scheduled_at].join(", ") %></div>
+          <% end %>
+        </div>
+
+        <%# Fee display %>
+        <div class="card mb-4">
+          <div class="card-body">
+            <h5 class="fw-bold mb-1">
+              <%= t('viewing_appointments.physical_fee') %> :<span class="text-success ms-2">Ksh <%= number_with_delimiter(@listing.viewing_fee) %></span>
+            </h5>
+            <p class="text-muted small mb-0"><%= t('viewing_appointments.fee_note') %></p>
+          </div>
+        </div>
+
+        <%# Payment Method selection %>
+        <div class="mb-4">
+          <h6 class="fw-bold text-uppercase small mb-3"><%= t('payment_attempts.fields.payment_method') %></h6>
+          <div class="d-flex gap-3" data-controller="payment-method">
+            <label class="wantu-btn wantu-btn--primary flex-fill text-center"
+                   style="cursor:pointer"
+                   data-payment-method-target="button"
+                   data-action="click->payment-method#select">
+              <input type="radio" name="payment_method" value="mpesa" class="d-none" checked>
+              <%= t('payment_attempts.fields.mpesa') %>
+            </label>
+            <label class="wantu-btn wantu-btn--outline flex-fill text-center"
+                   style="cursor:pointer"
+                   data-payment-method-target="button"
+                   data-action="click->payment-method#select">
+              <input type="radio" name="payment_method" value="card" class="d-none">
+              <%= t('payment_attempts.fields.card') %>
+            </label>
+          </div>
+        </div>
+
+        <%# Amount + actions %>
+        <div class="mb-4">
+          <h6 class="fw-bold mb-3"><%= t('viewing_appointments.amount_to_pay', default: 'Amount to pay') %></h6>
+          <div class="d-flex gap-3 align-items-center">
+            <div class="bg-dark text-white py-3 px-4 rounded fw-bold text-center" style="min-width:120px">
+              Ksh <%= number_with_delimiter(@listing.viewing_fee) %>
+            </div>
+            <%= f.submit t('viewing_appointments.continue_to_payment', default: 'Continue to Payment'), class: "wantu-btn wantu-btn--primary flex-grow-1 py-3" %>
+            <%= link_to t('actions.cancel'), listing_path(@listing), class: "wantu-btn wantu-btn--outline py-3 px-4" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

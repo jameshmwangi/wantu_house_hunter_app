@@ -1,0 +1,27 @@
+<div class="card mb-3 border-dark rounded-3">
+  <div class="card-body p-4">
+    <div class="text-warning mb-3">
+      <% review.rating.times do %>&#9733;<% end %>
+      <% (5 - review.rating).times do %><span class="text-muted">&#9733;</span><% end %>
+    </div>
+    <% if review.title.present? %>
+      <h6 class="fw-bold font-monospace mb-2"><%= review.title %></h6>
+    <% end %>
+    <p class="mb-4 font-monospace small"><%= review.body %></p>
+    <div class="d-flex align-items-center gap-3 font-monospace small text-muted">
+      <div class="wantu-agent-card__avatar wantu-agent-card__avatar--review <%= review.author.avatar_role_class %>">
+        <%= avatar_for(review.author, img_class: 'wantu-agent-card__avatar__img') %>
+      </div>
+      <span><%= review.author.full_name %></span>
+      <span>- date of review <%= l(review.created_at.to_date, format: :long) rescue review.created_at.to_date %></span>
+      
+      <% if user_signed_in? && (review.author_id == current_user.id || current_user.admin?) %>
+        <div class="ms-auto">
+          <%= link_to t('actions.edit'), edit_agent_review_path(review), class: "text-primary text-decoration-none me-2" %>
+          <%= button_to t('actions.delete'), agent_review_path(review), method: :delete, class: "btn btn-link text-danger p-0 m-0 text-decoration-none d-inline",
+              data: { turbo_confirm: t('prompts.confirm_delete') } %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
