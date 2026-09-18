@@ -16,7 +16,7 @@ class PaymentGatewayAdapter
   #
   # @param escrow_transaction [EscrowTransaction]
   # @param home_seeker [User]
-  # @param callback_url [String] IPN URL registered in JengaHQ
+  # @param callback_url [String] single shared Jenga IPN URL registered in JengaHQ (api_v1_jenga_ipn_url)
   def initiate_collection(escrow_transaction, home_seeker:, callback_url:)
     return simulate_collection(escrow_transaction) unless Jenga.configured?
 
@@ -46,7 +46,7 @@ class PaymentGatewayAdapter
   # Returns a hash with :provider_reference and :status keys.
   #
   # @param withdrawal [Withdrawal]
-  # @param callback_url [String] payout IPN URL registered in JengaHQ
+  # @param callback_url [String] single shared Jenga IPN URL registered in JengaHQ (api_v1_jenga_ipn_url)
   def initiate_payout(withdrawal, callback_url:)
     return simulate_payout(withdrawal) unless Jenga.configured?
 

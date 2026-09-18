@@ -65,7 +65,7 @@ class JengaClient
   #
   # @param escrow_transaction [EscrowTransaction]
   # @param home_seeker [User]
-  # @param callback_url [String] your IPN endpoint, e.g. https://wantu.onrender.com/api/v1/payments/ipn
+  # @param callback_url [String] your unified IPN endpoint, e.g. https://wantu.onrender.com/api/v1/payments/jenga_ipn
   # @return [Hash] Jenga response merged with generated references
   def initiate_mpesa_stk_push(escrow_transaction:, home_seeker:, callback_url:)
     order_reference   = "OR-#{escrow_transaction.id}-#{SecureRandom.hex(3)}"
@@ -121,7 +121,7 @@ class JengaClient
   #
   # @param withdrawal [Withdrawal]
   # @param payout_account [PayoutAccount]
-  # @param callback_url [String] your payout IPN endpoint
+  # @param callback_url [String] your unified IPN endpoint, e.g. https://wantu.onrender.com/api/v1/payments/jenga_ipn
   # @return [Hash] Jenga response merged with generated reference
   def send_to_mobile_wallet(withdrawal:, payout_account:, callback_url:)
     reference = "WD-#{withdrawal.id}-#{SecureRandom.hex(3)}"

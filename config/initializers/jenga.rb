@@ -10,6 +10,8 @@
 #   JENGA_CONSUMER_SECRET — from JengaHQ dashboard
 #   JENGA_PRIVATE_KEY     — contents of private_key.pem (RSA 2048, PKCS#8), never commit this
 #   JENGA_SOURCE_ACCOUNT  — Jenga-linked disbursement account number (for payouts)
+#   JENGA_IPN_USERNAME    — HTTP Basic Auth username for Jenga IPN callbacks
+#   JENGA_IPN_PASSWORD    — HTTP Basic Auth password for Jenga IPN callbacks
 #
 # Key generation (one-time per environment, sandbox and production must use separate pairs):
 #   openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
@@ -19,9 +21,10 @@
 #
 # IPN registration (dashboard action — not an API call):
 #   JengaHQ -> Settings -> IPNs:
-#     https://<domain>/api/v1/payments/ipn   (collection callback)
-#     https://<domain>/api/v1/payouts/ipn    (payout callback)
-#   Register sandbox and production URLs separately.
+#     https://<domain>/api/v1/payments/jenga_ipn
+#   (Jenga only allows one IPN per environment — dispatches internally on reference prefix:
+#    OR-/PR- for collections, WD- for payouts)
+#   Set your chosen Basic Auth credentials in JENGA_IPN_USERNAME and JENGA_IPN_PASSWORD.
 
 module Jenga
   BASE_URLS = {
@@ -47,5 +50,7 @@ Rails.application.config.jenga = {
   merchant_code:   ENV["JENGA_MERCHANT_CODE"],
   consumer_secret: ENV["JENGA_CONSUMER_SECRET"],
   private_key:     ENV["JENGA_PRIVATE_KEY"],
-  source_account:  ENV["JENGA_SOURCE_ACCOUNT"]
+  source_account:  ENV["JENGA_SOURCE_ACCOUNT"],
+  ipn_username:    ENV["JENGA_IPN_USERNAME"],
+  ipn_password:    ENV["JENGA_IPN_PASSWORD"]
 }

@@ -72,11 +72,12 @@ Rails.application.routes.draw do
       post "escrow_transactions/:escrow_transaction_id/pay", to: "payments#create",
            as: :escrow_transaction_pay
 
-      # Jenga Complete Callback Response — collection IPN
-      post "payments/ipn", to: "payments#ipn", as: :payments_ipn
+      # Jenga unified callback URL (single IPN registered in JengaHQ for collection & payouts)
+      post "payments/jenga_ipn", to: "payments#ipn", as: :jenga_ipn
 
-      # Jenga Send Money callback — payout IPN
-      post "payouts/ipn",  to: "payments#payout_ipn", as: :payouts_ipn
+      # Backwards-compatible aliases in case previous sandbox registrations point here
+      post "payments/ipn", to: "payments#ipn", as: :payments_ipn
+      post "payouts/ipn",  to: "payments#ipn", as: :payouts_ipn
     end
   end
 
