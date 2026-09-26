@@ -65,6 +65,12 @@ Rails.application.configure do
   # Suppress logger output for asset requests.
   config.assets.quiet = true
 
+  # Use memory store for Sprockets asset caching in development on Windows
+  # to prevent Errno::EACCES (Permission denied @ rb_file_s_rename) disk file locking.
+  config.assets.configure do |env|
+    env.cache = ActiveSupport::Cache.lookup_store(:memory_store, { size: 64.megabytes })
+  end
+
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true
 

@@ -7,6 +7,9 @@
 #   Character.create(name: "Luke", movie: movies.first)
 # frozen_string_literal: true
 
+# Use in-memory test queue adapter during seeding so ActiveStorage attachments don't require Redis
+ActiveJob::Base.queue_adapter = :test
+
 puts "\n== Wantu Seed =="
 
 # Change counts here to scale the dataset

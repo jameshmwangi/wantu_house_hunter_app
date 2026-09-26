@@ -1,6 +1,6 @@
 //= link_tree ../images
-//= link_directory ../stylesheets .css
-//= link_directory ../stylesheets .scss
+//= link_tree ../builds
 //= link_tree ../../javascript .js
 //= link_tree ../../../vendor/javascript .js
 //= link favicon/site.webmanifest.erb
+//= link rails_admin_custom.css

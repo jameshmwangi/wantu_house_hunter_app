@@ -83,3 +83,6 @@ private_key_pkcs8.pem
 # public_key.pem is safe to commit but excluded here to avoid confusion
 public_key.pem
 
+
+/app/assets/builds/*
+!/app/assets/builds/.keep

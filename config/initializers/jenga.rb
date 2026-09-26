@@ -36,11 +36,17 @@ module Jenga
     BASE_URLS.fetch(Rails.application.config.jenga[:environment])
   end
 
-  # Returns true when the Jenga integration is fully configured.
-  # Falls back to simulation mode when credentials are absent (development/test).
+  # Returns true when the Jenga integration is fully configured with real credentials.
+  # Falls back to simulation mode when credentials are absent or still set to placeholders
+  # (development/test). A real PEM key always contains "BEGIN".
   def self.configured?
-    Rails.application.config.jenga[:api_key].present? &&
-      Rails.application.config.jenga[:private_key].present?
+    api_key     = Rails.application.config.jenga[:api_key]
+    private_key = Rails.application.config.jenga[:private_key]
+
+    api_key.present? &&
+      !api_key.start_with?("your_") &&
+      private_key.present? &&
+      private_key.include?("BEGIN")
   end
 end
 

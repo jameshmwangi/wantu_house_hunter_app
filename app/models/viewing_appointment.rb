@@ -44,6 +44,13 @@ class ViewingAppointment < ApplicationRecord
   # @param callback_url [String] the registered Jenga IPN URL
   # @return [PaymentAttempt]
   def initiate_stk_payment!(phone_number:, callback_url:)
+    # Short-circuit if a processing attempt already exists and is recent (< 2 mins)
+    existing = payment_attempts
+                 .where(outcome: 'pending', stk_status: 'processing')
+                 .where('created_at > ?', 2.minutes.ago)
+                 .last
+    return existing if existing
+
     # Zero-amount: skip gateway, fund immediately (design doc §1.4)
     if fee_amount.to_i == 0
       escrow_transaction_or_create!.fund!
@@ -65,12 +72,16 @@ class ViewingAppointment < ApplicationRecord
       callback_url: callback_url
     )
 
-    payment = payment_attempts.create!(
-      payment_method:    'mpesa',
-      outcome:           'pending',
-      stk_status:        'processing',
-      provider_reference: result[:provider_reference]
-    )
+    begin
+      payment = payment_attempts.create!(
+        payment_method:    'mpesa',
+        outcome:           'pending',
+        stk_status:        'processing',
+        provider_reference: result[:provider_reference]
+      )
+    rescue ActiveRecord::RecordNotUnique
+      return payment_attempts.where(outcome: 'pending', stk_status: 'processing').last
+    end
 
     # Record the pending PaymentTransaction so the existing IPN + reconcile
     # jobs can pick it up via provider_reference

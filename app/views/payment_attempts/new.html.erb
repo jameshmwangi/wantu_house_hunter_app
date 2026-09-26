@@ -53,10 +53,16 @@
         <%= render 'payment_attempts/status', payment: @payment if @payment %>
       </div>
 
-      <%# Payment form — wrapped in a Turbo Frame so only this region reloads %>
-      <%= turbo_frame_tag "payment_form" do %>
-        <%= form_tag payment_attempts_path, method: :post do %>
-          <%= hidden_field_tag :viewing_appointment_id, @appointment.id %>
+      <%# Payment form — no Turbo Frame wrapper so the Turbo Stream response
+          (which targets #payment_status) is processed correctly.
+          IMPORTANT: form_with (not form_tag) is required so that Turbo automatically
+          sets Accept: text/vnd.turbo-stream.html, allowing the controller's
+          format.turbo_stream branch to match. form_tag does not do this, causing a
+          302 redirect fallback to format.html. %>
+        <%= form_with url: payment_attempts_path, method: :post,
+              data: { controller: "disable-on-submit",
+                      action: "submit->disable-on-submit#disable turbo:submit-end->disable-on-submit#reenable" } do |f| %>
+          <%= f.hidden_field :viewing_appointment_id, value: @appointment.id, name: :viewing_appointment_id %>
 
           <%# Payment Method toggle %>
           <div class="mb-4" data-controller="payment-method">
@@ -120,9 +126,8 @@
           </div>
 
           <%# Submit %>
-          <%= submit_tag t('viewing_appointments.submit_payment', default: 'Complete Booking'), class: "wantu-btn wantu-btn--primary w-100 py-3 fs-5" %>
+          <%= f.submit t('viewing_appointments.submit_payment', default: 'Complete Booking'), class: "wantu-btn wantu-btn--primary w-100 py-3 fs-5", data: { "disable-on-submit-target": "submit" } %>
         <% end %>
-      <% end %>
     </div>
   </div>
 </section>

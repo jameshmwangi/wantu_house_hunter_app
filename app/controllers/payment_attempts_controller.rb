@@ -59,6 +59,7 @@ class PaymentAttemptsController < ApplicationController
                 alert: t('payment_attempts.gateway_error', default: 'Payment initiation failed — please try again.')
   rescue => e
     Rails.logger.error "[PaymentAttemptsController#create] Error: #{e.class} — #{e.message}"
+    Rails.logger.error e.backtrace.first(10).join("\n")
     redirect_to listing_path(@appointment.listing),
                 alert: t('payment_attempts.failure')
   end

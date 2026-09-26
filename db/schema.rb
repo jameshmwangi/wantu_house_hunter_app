@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_22_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -54,6 +54,29 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
     t.index ["author_id"], name: "index_agent_reviews_on_author_id"
   end
 
+  create_table "escrow_transactions", force: :cascade do |t|
+    t.bigint "viewing_appointment_id", null: false
+    t.bigint "listing_id", null: false
+    t.bigint "home_seeker_id", null: false
+    t.bigint "agent_id", null: false
+    t.bigint "amount_cents", null: false
+    t.string "currency", null: false
+    t.string "country", null: false
+    t.string "status", default: "pending", null: false
+    t.string "confirmation_code"
+    t.datetime "confirmation_code_expires_at"
+    t.integer "confirmation_attempts", default: 0, null: false
+    t.datetime "funded_at"
+    t.datetime "released_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_escrow_transactions_on_agent_id"
+    t.index ["confirmation_code"], name: "index_escrow_transactions_on_confirmation_code"
+    t.index ["home_seeker_id"], name: "index_escrow_transactions_on_home_seeker_id"
+    t.index ["listing_id"], name: "index_escrow_transactions_on_listing_id"
+    t.index ["viewing_appointment_id"], name: "index_escrow_transactions_on_viewing_appointment_id", unique: true
+  end
+
   create_table "favourites", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "listing_id", null: false
@@ -62,6 +85,18 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
     t.index ["listing_id"], name: "index_favourites_on_listing_id"
     t.index ["user_id", "listing_id"], name: "index_favourites_on_user_id_and_listing_id", unique: true
     t.index ["user_id"], name: "index_favourites_on_user_id"
+  end
+
+  create_table "ledger_entries", force: :cascade do |t|
+    t.bigint "escrow_transaction_id", null: false
+    t.string "account", null: false
+    t.string "entry_type", null: false
+    t.bigint "amount_cents", null: false
+    t.string "currency", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["escrow_transaction_id", "account"], name: "index_ledger_entries_on_escrow_transaction_id_and_account"
+    t.index ["escrow_transaction_id"], name: "index_ledger_entries_on_escrow_transaction_id"
   end
 
   create_table "listings", force: :cascade do |t|
@@ -101,7 +136,39 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
     t.string "payment_reference"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "stk_status", default: "pending", null: false
+    t.string "provider_reference"
+    t.index ["provider_reference"], name: "index_payment_attempts_on_provider_reference"
+    t.index ["stk_status"], name: "index_payment_attempts_on_stk_status"
+    t.index ["viewing_appointment_id"], name: "index_one_processing_attempt_per_appointment", unique: true, where: "((stk_status)::text = 'processing'::text)"
     t.index ["viewing_appointment_id"], name: "index_payment_attempts_on_viewing_appointment_id"
+  end
+
+  create_table "payment_transactions", force: :cascade do |t|
+    t.bigint "escrow_transaction_id", null: false
+    t.string "direction", null: false
+    t.string "provider"
+    t.string "provider_channel"
+    t.string "provider_reference"
+    t.string "status", default: "initiated", null: false
+    t.jsonb "raw_payload", default: {}, null: false
+    t.bigint "amount_cents", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["escrow_transaction_id"], name: "index_payment_transactions_on_escrow_transaction_id"
+    t.index ["provider_reference"], name: "index_payment_transactions_on_provider_reference", unique: true, where: "(provider_reference IS NOT NULL)"
+  end
+
+  create_table "payout_accounts", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.string "country", null: false
+    t.string "kind", null: false
+    t.text "details", null: false
+    t.boolean "verified", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "country", "kind"], name: "index_payout_accounts_on_agent_id_and_country_and_kind", unique: true
+    t.index ["agent_id"], name: "index_payout_accounts_on_agent_id"
   end
 
   create_table "property_comments", force: :cascade do |t|
@@ -157,15 +224,38 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
     t.index ["listing_id"], name: "index_viewing_appointments_on_listing_id"
   end
 
+  create_table "withdrawals", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "payout_account_id", null: false
+    t.bigint "payment_transaction_id"
+    t.bigint "amount_cents", null: false
+    t.string "currency", null: false
+    t.string "status", default: "requested", null: false
+    t.datetime "requested_at", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id"], name: "index_withdrawals_on_agent_id"
+    t.index ["payment_transaction_id"], name: "index_withdrawals_on_payment_transaction_id"
+    t.index ["payout_account_id"], name: "index_withdrawals_on_payout_account_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_reviews", "users", column: "agent_id"
   add_foreign_key "agent_reviews", "users", column: "author_id"
+  add_foreign_key "escrow_transactions", "listings"
+  add_foreign_key "escrow_transactions", "users", column: "agent_id"
+  add_foreign_key "escrow_transactions", "users", column: "home_seeker_id"
+  add_foreign_key "escrow_transactions", "viewing_appointments"
   add_foreign_key "favourites", "listings"
   add_foreign_key "favourites", "users"
+  add_foreign_key "ledger_entries", "escrow_transactions"
   add_foreign_key "listings", "locations"
   add_foreign_key "listings", "users"
   add_foreign_key "payment_attempts", "viewing_appointments"
+  add_foreign_key "payment_transactions", "escrow_transactions"
+  add_foreign_key "payout_accounts", "users", column: "agent_id"
   add_foreign_key "property_comments", "listings"
   add_foreign_key "property_comments", "property_comments", column: "parent_comment_id"
   add_foreign_key "property_comments", "users", column: "author_id"
@@ -173,4 +263,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_05_191112) do
   add_foreign_key "viewing_appointments", "listings"
   add_foreign_key "viewing_appointments", "users", column: "agent_id"
   add_foreign_key "viewing_appointments", "users", column: "home_seeker_id"
+  add_foreign_key "withdrawals", "payment_transactions"
+  add_foreign_key "withdrawals", "payout_accounts"
+  add_foreign_key "withdrawals", "users", column: "agent_id"
 end

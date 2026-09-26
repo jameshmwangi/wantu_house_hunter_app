@@ -7,6 +7,8 @@
 # This adapter is the seam between domain logic (EscrowTransaction, Withdrawal)
 # and the payment provider. Swap the inner implementation without touching models.
 class PaymentGatewayAdapter
+  class Error < StandardError; end
+
   SimulationResult = Struct.new(:status, :provider_reference, keyword_init: true)
 
   # Initiate a collection (home seeker pays the view fee).

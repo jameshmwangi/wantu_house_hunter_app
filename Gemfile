@@ -34,7 +34,7 @@ gem "sidekiq"
 gem "sidekiq-cron", "~> 1.12"  # Cron scheduling for ReconcilePendingPaymentsJob
 gem "kaminari", "~> 1.2"
 gem "bootstrap", "~> 5.3"
-gem "sassc-rails"
+gem "dartsass-rails"
 gem "image_processing", "~> 1.2"
 gem "aws-sdk-s3", require: false
 
@@ -43,8 +43,6 @@ gem "tzinfo-data", platforms: %i[ mingw mswin x64_mingw jruby ]
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
-# Use Sass to process CSS
-# gem "sassc-rails"
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 # gem "image_processing", "~> 1.2"
@@ -55,6 +53,7 @@ group :development, :test do
   gem "rspec-rails", "~> 6.0"
   gem "factory_bot_rails", "~> 6.2"
   gem "faker", "~> 3.2"
+  gem "dotenv-rails", "~> 3.1"  # Load .env into ENV for local Jenga API credentials
 end
 
 group :test do
