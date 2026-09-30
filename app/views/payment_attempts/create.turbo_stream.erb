@@ -6,3 +6,4 @@
 <%= turbo_stream.update "payment_status" do %>
   <%= render "payment_attempts/status", payment: @payment %>
 <% end %>
+<%= turbo_stream.remove "payment_form" %>

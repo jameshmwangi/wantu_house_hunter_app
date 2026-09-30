@@ -29,7 +29,7 @@ class PaymentGatewayAdapter
   # @param home_seeker [User]
   # @param callback_url [String] browser redirect-back URL (GET with OrderTrackingId param)
   # @return [Hash] { provider:, provider_reference:, merchant_reference:, status:, redirect_url: }
-  def initiate_collection(escrow_transaction, home_seeker:, callback_url:)
+  def initiate_collection(escrow_transaction, home_seeker:, callback_url:, phone_number: nil)
     return simulate_collection(escrow_transaction) unless Pesapal.configured?
 
     client = PesapalClient.new
@@ -39,16 +39,22 @@ class PaymentGatewayAdapter
     amount   = escrow_transaction.amount_cents / 100.0
     currency = escrow_transaction.currency
 
+    # Parse first and last names from user's full name
+    name_parts = (home_seeker.full_name || "").strip.split(/\s+/, 2)
+    first_name = name_parts[0].presence || "Valued"
+    last_name  = name_parts[1].presence || "Customer"
+    contact_phone = phone_number.presence || home_seeker.phone_number.to_s
+
     result = client.submit_order(
       merchant_reference: merchant_reference,
       amount:             amount,
       description:        "Wantu view fee",
       callback_url:       callback_url,
-      phone_number:       home_seeker.phone_number.to_s,
+      phone_number:       contact_phone,
       email_address:      home_seeker.email.to_s,
-      first_name:         home_seeker.try(:first_name).to_s,
+      first_name:         first_name,
       middle_name:        "",
-      last_name:          home_seeker.try(:last_name).to_s,
+      last_name:          last_name,
       currency:           currency,
       branch:             "Wantu House Hunter"
     )

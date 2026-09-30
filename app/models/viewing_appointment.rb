@@ -71,7 +71,8 @@ class ViewingAppointment < ApplicationRecord
     result  = adapter.initiate_collection(
       escrow,
       home_seeker:  home_seeker,
-      callback_url: callback_url
+      callback_url: callback_url,
+      phone_number: phone_number
     )
 
     begin
@@ -79,7 +80,8 @@ class ViewingAppointment < ApplicationRecord
         payment_method:    'mpesa',
         outcome:           'pending',
         stk_status:        'processing',
-        provider_reference: result[:provider_reference]
+        provider_reference: result[:provider_reference],
+        redirect_url:       result[:redirect_url]
       )
     rescue ActiveRecord::RecordNotUnique
       return payment_attempts.where(outcome: 'pending', stk_status: 'processing').last

@@ -53,81 +53,60 @@
         <%= render 'payment_attempts/status', payment: @payment if @payment %>
       </div>
 
-      <%# Payment form — no Turbo Frame wrapper so the Turbo Stream response
-          (which targets #payment_status) is processed correctly.
-          IMPORTANT: form_with (not form_tag) is required so that Turbo automatically
-          sets Accept: text/vnd.turbo-stream.html, allowing the controller's
-          format.turbo_stream branch to match. form_tag does not do this, causing a
-          302 redirect fallback to format.html. %>
-        <%= form_with url: payment_attempts_path, method: :post,
-              data: { controller: "disable-on-submit",
-                      action: "submit->disable-on-submit#disable turbo:submit-end->disable-on-submit#reenable" } do |f| %>
-          <%= f.hidden_field :viewing_appointment_id, value: @appointment.id, name: :viewing_appointment_id %>
-
-          <%# Payment Method toggle %>
-          <div class="mb-4" data-controller="payment-method">
-            <h6 class="fw-bold mb-3"><%= t('payment_attempts.fields.payment_method') %></h6>
-            <div class="d-flex gap-3 mb-4">
-              <label class="wantu-btn <%= @payment_method == 'mpesa' ? 'wantu-btn--primary' : 'wantu-btn--outline' %> flex-fill text-center"
-                     style="cursor:pointer"
-                     data-payment-method-target="button"
-                     data-action="click->payment-method#select">
-                <input type="radio" name="payment_method" value="mpesa" class="d-none" <%= 'checked' if @payment_method == 'mpesa' %>>
-                <%= t('payment_attempts.fields.mpesa') %>
-              </label>
-              <label class="wantu-btn <%= @payment_method == 'card' ? 'wantu-btn--primary' : 'wantu-btn--outline' %> flex-fill text-center"
-                     style="cursor:pointer"
-                     data-payment-method-target="button"
-                     data-action="click->payment-method#select">
-                <input type="radio" name="payment_method" value="card" class="d-none" <%= 'checked' if @payment_method == 'card' %>>
-                <%= t('payment_attempts.fields.card') %>
-              </label>
+      <%# Payment form %>
+      <div id="payment_form">
+        <div class="card mb-4 border-0 shadow-sm">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+              <span class="text-muted"><%= t('viewing_appointments.viewing_fee', default: 'Viewing Appointment Fee') %></span>
+              <span class="fs-4 fw-bold text-success">Ksh <%= number_with_delimiter(@appointment.fee_amount) %></span>
             </div>
 
-            <%# M-Pesa details — phone number for real STK push %>
-            <div class="card mb-4" data-payment-method-target="mpesaForm" style="<%= 'display:none' if @payment_method == 'card' %>">
-              <div class="card-body">
-                <h6 class="text-success fw-bold text-uppercase small mb-3"><%= t('payment_attempts.mpesa_details', default: 'M-Pesa Details') %></h6>
-                <div class="mb-2">
-                  <label class="form-label small fw-medium" for="phone_number">
-                    <%= t('payment_attempts.mpesa_number', default: 'M-Pesa Number') %>
-                  </label>
-                  <input type="tel"
-                         id="phone_number"
-                         name="phone_number"
-                         class="form-control"
-                         placeholder="2547XXXXXXXX"
-                         value="<%= current_user.phone_number %>">
-                  <div class="form-text text-muted">
-                    Enter the M-Pesa number that will receive the payment prompt (e.g. 2547XXXXXXXX).
-                  </div>
-                </div>
+            <div class="mb-3">
+              <label class="text-muted small text-uppercase fw-semibold d-block mb-2">Supported Payment Methods</label>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 fs-6">
+                  📱 M-Pesa
+                </span>
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 fs-6">
+                  📱 Airtel Money
+                </span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 fs-6">
+                  💳 Visa / Mastercard
+                </span>
               </div>
             </div>
 
-            <%# Card details %>
-            <div class="card mb-4" data-payment-method-target="cardForm" style="<%= 'display:none' if @payment_method != 'card' %>">
-              <div class="card-body">
-                <h6 class="text-success fw-bold text-uppercase small mb-3"><%= t('payment_attempts.card_details', default: 'Card Details') %></h6>
-                <div class="mb-3">
-                  <label class="form-label small fw-medium"><%= t('payment_attempts.cardholder_name', default: 'Cardholder Name') %></label>
-                  <input type="text" name="cardholder_name" class="form-control" placeholder="<%= current_user.full_name %>">
-                </div>
-                <div class="mb-0">
-                  <label class="form-label small fw-medium"><%= t('payment_attempts.card_number', default: 'Card Number') %></label>
-                  <div class="d-flex gap-2">
-                    <input type="text" name="card_number" class="form-control flex-grow-1" placeholder="Card number">
-                    <input type="text" name="card_expiry" class="form-control" style="max-width:100px" placeholder="Expiry">
-                    <input type="text" name="card_cvv" class="form-control" style="max-width:80px" placeholder="CVV">
-                  </div>
+            <%= form_with url: payment_attempts_path, method: :post,
+                  id: "checkout_form",
+                  data: { controller: "disable-on-submit",
+                          action: "submit->disable-on-submit#disable turbo:submit-end->disable-on-submit#reenable" } do |f| %>
+              <%= f.hidden_field :viewing_appointment_id, value: @appointment.id, name: :viewing_appointment_id %>
+              <input type="hidden" name="payment_method" value="mpesa">
+
+              <%# Phone number field — pre-filled from user profile %>
+              <div class="mb-4">
+                <label class="form-label small fw-medium" for="phone_number">
+                  <%= t('payment_attempts.mpesa_number', default: 'Contact / Phone Number') %>
+                </label>
+                <input type="tel"
+                       id="phone_number"
+                       name="phone_number"
+                       class="form-control"
+                       placeholder="2547XXXXXXXX"
+                       value="<%= current_user.phone_number %>">
+                <div class="form-text text-muted">
+                  Used for pre-filling your details on the secure Pesapal checkout page.
                 </div>
               </div>
-            </div>
+
+              <%= f.submit t('viewing_appointments.submit_payment', default: "Proceed to Pay Ksh #{number_with_delimiter(@appointment.fee_amount)}"),
+                    class: "wantu-btn wantu-btn--primary w-100 py-3 fs-5",
+                    data: { "disable-on-submit-target": "submit" } %>
+            <% end %>
           </div>
-
-          <%# Submit %>
-          <%= f.submit t('viewing_appointments.submit_payment', default: 'Complete Booking'), class: "wantu-btn wantu-btn--primary w-100 py-3 fs-5", data: { "disable-on-submit-target": "submit" } %>
-        <% end %>
+        </div>
+      </div>
     </div>
   </div>
 </section>

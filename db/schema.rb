@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_09_22_150000) do
+ActiveRecord::Schema[7.0].define(version: 2026_09_30_091500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -138,6 +138,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_09_22_150000) do
     t.datetime "updated_at", null: false
     t.string "stk_status", default: "pending", null: false
     t.string "provider_reference"
+    t.text "redirect_url"
     t.index ["provider_reference"], name: "index_payment_attempts_on_provider_reference"
     t.index ["stk_status"], name: "index_payment_attempts_on_stk_status"
     t.index ["viewing_appointment_id"], name: "index_one_processing_attempt_per_appointment", unique: true, where: "((stk_status)::text = 'processing'::text)"
