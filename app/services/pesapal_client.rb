@@ -143,7 +143,11 @@ class PesapalClient
       billing_address: billing_address
     }
 
+    Rails.logger.info "[PesapalClient#submit_order] REQUEST body: #{body.to_json}"
+
     response = authed_post("/api/Transactions/SubmitOrderRequest", body)
+
+    Rails.logger.info "[PesapalClient#submit_order] RESPONSE: #{response.inspect}"
 
     {
       order_tracking_id:  response["order_tracking_id"],
