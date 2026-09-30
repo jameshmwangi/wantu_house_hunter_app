@@ -4,3 +4,4 @@
 //= link_tree ../../../vendor/javascript .js
 //= link favicon/site.webmanifest.erb
 //= link rails_admin_custom.css
+//= link rails_admin/application.css
