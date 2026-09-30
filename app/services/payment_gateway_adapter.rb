@@ -1,103 +1,120 @@
 # Provider-neutral gateway adapter.
 #
-# Delegates to JengaClient when Jenga credentials are present (JENGA_API_KEY +
-# JENGA_PRIVATE_KEY set in env). Falls back to simulation mode when credentials
-# are absent — useful in development and test without real sandbox keys.
+# Delegates to PesapalClient when Pesapal credentials are present
+# (PESAPAL_CONSUMER_KEY + PESAPAL_CONSUMER_SECRET + PESAPAL_IPN_ID set in env).
+# Falls back to simulation mode when credentials are absent — useful in
+# development and test without real sandbox keys.
 #
-# This adapter is the seam between domain logic (EscrowTransaction, Withdrawal)
-# and the payment provider. Swap the inner implementation without touching models.
+# IMPORTANT — Pesapal flow differs from a direct STK push:
+#   initiate_collection returns a :redirect_url that must be shown to the user
+#   (in an iframe or as a full redirect). The actual M-Pesa push is triggered
+#   by Pesapal's hosted page — NOT by your server directly.
+#
+# Payment field name reference from PesaPal-main PHP:
+#   billing_address: phone_number, email_address, first_name, middle_name, last_name,
+#                    country_code, line_1, city, state, postal_code, zip_code
+#   order fields: id (merchant_reference), currency, amount (Float), description,
+#                 callback_url, notification_id, branch
 class PaymentGatewayAdapter
   class Error < StandardError; end
 
   SimulationResult = Struct.new(:status, :provider_reference, keyword_init: true)
 
-  # Initiate a collection (home seeker pays the view fee).
-  # For Kenya:  M-Pesa STK Push via JengaClient#initiate_mpesa_stk_push.
-  # For Uganda: MTN MoMo / Airtel — same client, country routing via EscrowTransaction#country.
-  # Returns a hash with at least :provider_reference and :status keys.
+  # Initiate a collection (home seeker pays the view fee via Pesapal hosted page).
+  #
+  # Returns a hash with :provider_reference (order_tracking_id), :status, :redirect_url
+  # The caller MUST surface redirect_url to the user (iframe or full redirect).
   #
   # @param escrow_transaction [EscrowTransaction]
   # @param home_seeker [User]
-  # @param callback_url [String] single shared Jenga IPN URL registered in JengaHQ (api_v1_jenga_ipn_url)
+  # @param callback_url [String] browser redirect-back URL (GET with OrderTrackingId param)
+  # @return [Hash] { provider:, provider_reference:, merchant_reference:, status:, redirect_url: }
   def initiate_collection(escrow_transaction, home_seeker:, callback_url:)
-    return simulate_collection(escrow_transaction) unless Jenga.configured?
+    return simulate_collection(escrow_transaction) unless Pesapal.configured?
 
-    client = JengaClient.new
+    client = PesapalClient.new
 
-    case escrow_transaction.country
-    when "KE"
-      result = client.initiate_mpesa_stk_push(
-        escrow_transaction: escrow_transaction,
-        home_seeker:        home_seeker,
-        callback_url:       callback_url
-      )
-      { provider: "jenga", provider_reference: result["payment_reference"], status: "pending" }
-    when "UG"
-      # Uganda collection uses the same JengaClient with country routing.
-      # Jenga's Uganda mobile money collection endpoint will be wired here once
-      # Finserve confirms the exact UG collection endpoint (currently using KE
-      # as the template — verify with Jenga docs before enabling for UG).
-      raise NotImplementedError, "Uganda collection endpoint — confirm with Finserve and wire here"
-    else
-      raise ArgumentError, "Unsupported country: #{escrow_transaction.country}"
-    end
+    # Merchant reference: unique per attempt, max 50 chars, alphanumeric + - _ . :
+    merchant_reference = "BOOKING-#{escrow_transaction.id}-#{SecureRandom.hex(4)}"
+    amount   = escrow_transaction.amount_cents / 100.0
+    currency = escrow_transaction.currency
+
+    result = client.submit_order(
+      merchant_reference: merchant_reference,
+      amount:             amount,
+      description:        "Wantu view fee",
+      callback_url:       callback_url,
+      phone_number:       home_seeker.phone_number.to_s,
+      email_address:      home_seeker.email.to_s,
+      first_name:         home_seeker.try(:first_name).to_s,
+      middle_name:        "",
+      last_name:          home_seeker.try(:last_name).to_s,
+      currency:           currency,
+      branch:             "Wantu House Hunter"
+    )
+
+    {
+      provider:           "pesapal",
+      provider_reference: result[:order_tracking_id],   # UUID — used to look up status
+      merchant_reference: merchant_reference,
+      status:             "pending",
+      redirect_url:       result[:redirect_url]
+    }
+  rescue PesapalClient::PesapalError => e
+    raise Error, e.message
   end
 
   # Initiate a payout to an agent's mobile wallet.
-  # Covers M-Pesa (KE), MTN MoMo (UG), and Airtel Money (UG).
-  # Returns a hash with :provider_reference and :status keys.
+  # Pesapal API 3.0 is primarily a collection gateway; disbursements require a
+  # separate product. Until that is available, falls back to simulation.
   #
   # @param withdrawal [Withdrawal]
-  # @param callback_url [String] single shared Jenga IPN URL registered in JengaHQ (api_v1_jenga_ipn_url)
+  # @param callback_url [String] placeholder for future disbursement API
   def initiate_payout(withdrawal, callback_url:)
-    return simulate_payout(withdrawal) unless Jenga.configured?
-
-    client  = JengaClient.new
-    account = withdrawal.payout_account
-
-    result = client.send_to_mobile_wallet(
-      withdrawal:    withdrawal,
-      payout_account: account,
-      callback_url:  callback_url
-    )
-
-    { provider: "jenga", provider_reference: result["reference"], status: "pending" }
+    Rails.logger.warn "[PaymentGatewayAdapter] Pesapal disbursement not yet integrated — simulation fallback"
+    simulate_payout(withdrawal)
   end
 
-  # Server-to-server transaction status query (used by ReconcilePendingPaymentsJob).
+  # Server-to-server transaction status check (used by ReconcilePendingPaymentsJob).
+  # Calls GetTransactionStatus?orderTrackingId={provider_reference}.
   #
-  # @param provider_reference [String]
-  # @param country_code [String] "KE" or "UG"
-  # @return [Hash] raw Jenga query response
+  # Returns the raw Pesapal response body. Key field: "status_code"
+  #   0 = INVALID/pending, 1 = COMPLETED, 2 = FAILED, 3 = REVERSED
+  #
+  # @param provider_reference [String] the order_tracking_id stored on PaymentTransaction
+  # @param country_code [String] unused (kept for interface compatibility)
+  # @return [Hash] raw Pesapal GetTransactionStatus response
   def verify_transaction(provider_reference, country_code: "KE")
-    return { status: "simulated" } unless Jenga.configured?
+    return { "status_code" => 0, "payment_status_description" => "SIMULATED" } unless Pesapal.configured?
 
-    JengaClient.new.query_transaction(
-      provider_reference: provider_reference,
-      country_code:       country_code
-    )
+    PesapalClient.new.get_transaction_status(provider_reference)
+  rescue PesapalClient::PesapalError => e
+    raise Error, e.message
   end
 
-  # Verify an incoming IPN webhook payload against the provider's expected signature.
-  # Jenga uses HMAC or RSA verification depending on the endpoint — implement once
-  # Finserve confirms the exact IPN signature method for sandbox.
+  # Extract the order_tracking_id from a Pesapal IPN payload.
+  # IPN body (confirmed from pin.json reference):
+  #   { "OrderTrackingId": "...", "OrderNotificationType": "IPNCHANGE", "OrderMerchantReference": "..." }
   #
-  # @param payload [Hash]
-  # @param signature [String] value of the Jenga-Signature header
-  def handle_webhook(payload, signature)
-    return { status: "simulated" } unless Jenga.configured?
-
-    # TODO: implement Jenga IPN signature verification once the exact
-    # algorithm is confirmed with Finserve support (HMAC-SHA256 or RSA).
-    # For now, trust the payload and let the IPN controller handle logic.
-    payload
+  # @param payload [Hash] raw IPN params
+  # @return [String, nil]
+  def extract_order_tracking_id(payload)
+    payload["OrderTrackingId"]  ||
+      payload[:OrderTrackingId] ||
+      payload["orderTrackingId"]
   end
 
   private
 
   def simulate_collection(escrow_transaction)
     Rails.logger.info "[PaymentGatewayAdapter] SIMULATION — collection for escrow ##{escrow_transaction.id}"
-    { provider: "simulation", provider_reference: "SIM-#{SecureRandom.hex(6)}", status: "simulated" }
+    {
+      provider:           "simulation",
+      provider_reference: "SIM-#{SecureRandom.hex(6)}",
+      merchant_reference: "SIM-BOOKING-#{escrow_transaction.id}",
+      status:             "simulated",
+      redirect_url:       nil
+    }
   end
 
   def simulate_payout(withdrawal)

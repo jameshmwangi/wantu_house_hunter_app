@@ -6,164 +6,125 @@ RSpec.describe "Api::V1::Payments", type: :request do
   let(:appointment) { create(:viewing_appointment, fee_amount: 500) }
   let(:escrow) { appointment.escrow_transaction_or_create! }
 
-  describe "POST /api/v1/payments/jenga_ipn" do
+  # Pesapal IPN payload structure (confirmed from development1/PesaPal-main/pin.json):
+  #   { "OrderTrackingId": "...", "OrderNotificationType": "IPNCHANGE", "OrderMerchantReference": "..." }
+  #
+  # Pesapal IPN response must be:
+  #   { "orderNotificationType": "IPNCHANGE", "orderTrackingId": "...", "orderMerchantReference": "...", "status": 200 }
+
+  describe "POST /api/v1/pesapal/ipn" do
+    let(:order_tracking_id) { "cb7fec53-e20e-48de-8ebc-#{escrow.id.to_s.rjust(12, '0')}" }
+
     context "collection callback" do
       let!(:payment_tx) do
         escrow.payment_transactions.create!(
-          direction: "collection",
-          provider: "jenga",
-          provider_channel: "mpesa",
-          provider_reference: "PR-#{escrow.id}-abc",
-          status: "pending",
-          amount_cents: escrow.amount_cents
+          direction:          "collection",
+          provider:           "pesapal",
+          provider_channel:   "mpesa",
+          provider_reference: order_tracking_id,  # = Pesapal order_tracking_id
+          status:             "pending",
+          amount_cents:       escrow.amount_cents
         )
       end
 
-      it "funds the escrow and records ledger entries on SUCCESS" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          transaction: {
-            reference: "PR-#{escrow.id}-abc",
-            status: "SUCCESS"
-          }
-        }, as: :json
+      context "when GetTransactionStatus returns COMPLETED (status_code: 1)" do
+        before do
+          allow_any_instance_of(PesapalClient).to receive(:get_transaction_status)
+            .with(order_tracking_id)
+            .and_return({
+              "payment_method"              => "MPESA",
+              "amount"                      => 500,
+              "status_code"                 => 1,
+              "payment_status_description"  => "Completed",
+              "confirmation_code"           => "NLJ7RT61SV",
+              "status"                      => "200"
+            })
+        end
 
-        expect(response).to have_http_status(:ok)
-        expect(response.parsed_body).to eq({ "status" => "received" })
+        it "funds the escrow and records ledger entries" do
+          post "/api/v1/pesapal/ipn", params: {
+            OrderTrackingId:        order_tracking_id,
+            OrderNotificationType:  "IPNCHANGE",
+            OrderMerchantReference: "BOOKING-#{escrow.id}-abcd"
+          }, as: :json
 
-        expect(payment_tx.reload.status).to eq("success")
-        expect(escrow.reload).to be_funded
-        expect(escrow.ledger_entries.pluck(:account, :entry_type, :amount_cents)).to contain_exactly(
-          ["home_seeker_suspense", "debit", 50_000],
-          ["escrow_holding", "credit", 50_000]
-        )
+          expect(response).to have_http_status(:ok)
+          body = response.parsed_body
+          expect(body["status"]).to eq(200)
+          expect(body["orderTrackingId"]).to eq(order_tracking_id)
+
+          expect(payment_tx.reload.status).to eq("success")
+          expect(escrow.reload).to be_funded
+          expect(escrow.ledger_entries.pluck(:account, :entry_type, :amount_cents)).to contain_exactly(
+            ["home_seeker_suspense", "debit", 50_000],
+            ["escrow_holding", "credit", 50_000]
+          )
+        end
       end
 
-      it "marks payment_transaction failed on failure" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          transaction: {
-            reference: "PR-#{escrow.id}-abc",
-            status: "FAILED"
-          }
-        }, as: :json
+      context "when GetTransactionStatus returns FAILED (status_code: 2)" do
+        before do
+          allow_any_instance_of(PesapalClient).to receive(:get_transaction_status)
+            .with(order_tracking_id)
+            .and_return({ "status_code" => 2, "payment_status_description" => "Failed", "status" => "200" })
+        end
 
-        expect(response).to have_http_status(:ok)
-        expect(payment_tx.reload.status).to eq("failed")
-        expect(escrow.reload).to be_pending
+        it "marks payment_transaction failed" do
+          post "/api/v1/pesapal/ipn", params: {
+            OrderTrackingId:        order_tracking_id,
+            OrderNotificationType:  "IPNCHANGE",
+            OrderMerchantReference: "BOOKING-#{escrow.id}-abcd"
+          }, as: :json
+
+          expect(response).to have_http_status(:ok)
+          expect(payment_tx.reload.status).to eq("failed")
+          expect(escrow.reload).to be_pending
+        end
+      end
+
+      context "when GetTransactionStatus returns still pending (status_code: 0)" do
+        before do
+          allow_any_instance_of(PesapalClient).to receive(:get_transaction_status)
+            .with(order_tracking_id)
+            .and_return({ "status_code" => 0, "payment_status_description" => "Invalid", "status" => "200" })
+        end
+
+        it "leaves payment_transaction pending and responds 200" do
+          post "/api/v1/pesapal/ipn", params: {
+            OrderTrackingId:        order_tracking_id,
+            OrderNotificationType:  "IPNCHANGE",
+            OrderMerchantReference: "BOOKING-#{escrow.id}-abcd"
+          }, as: :json
+
+          expect(response).to have_http_status(:ok)
+          expect(payment_tx.reload.status).to eq("pending")
+        end
       end
 
       it "is idempotent if already processed" do
         payment_tx.update!(status: "success")
         escrow.update!(status: "funded")
 
-        post "/api/v1/payments/jenga_ipn", params: {
-          transaction: {
-            reference: "PR-#{escrow.id}-abc",
-            status: "SUCCESS"
-          }
+        post "/api/v1/pesapal/ipn", params: {
+          OrderTrackingId:        order_tracking_id,
+          OrderNotificationType:  "IPNCHANGE",
+          OrderMerchantReference: "BOOKING-#{escrow.id}-abcd"
         }, as: :json
 
         expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["status"]).to eq(200)
       end
     end
 
-    context "payout callback" do
-      let(:agent) { appointment.agent }
-      let!(:payout_account) do
-        PayoutAccount.create!(
-          agent: agent,
-          country: "KE",
-          kind: "mpesa",
-          details: "254712345678",
-          verified: true
-        )
-      end
-      let!(:funded_and_released_escrow) do
-        esc = appointment.escrow_transaction_or_create!
-        esc.fund!
-        esc.release!(code: esc.confirmation_code)
-        esc
-      end
-      let!(:withdrawal) do
-        w = Withdrawal.create!(
-          agent: agent,
-          payout_account: payout_account,
-          amount_cents: 20_000,
-          currency: "KES",
-          status: "requested"
-        )
-        pt = PaymentTransaction.create!(
-          escrow_transaction: funded_and_released_escrow,
-          direction: "payout",
-          provider: "jenga",
-          provider_channel: "mpesa",
-          provider_reference: "WD-#{w.id}-xyz",
-          status: "pending",
-          amount_cents: 20_000
-        )
-        w.update!(status: "processing", payment_transaction: pt)
-        w
-      end
-
-      it "marks withdrawal paid and writes ledger entries on SUCCESS" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          data: {
-            transReference: "WD-#{withdrawal.id}-xyz",
-            ResponseCode: "0"
-          }
+    context "missing OrderTrackingId" do
+      it "responds 200 with orderTrackingId nil (does not crash)" do
+        post "/api/v1/pesapal/ipn", params: {
+          OrderNotificationType:  "IPNCHANGE",
+          OrderMerchantReference: "BOOKING-unknown"
         }, as: :json
 
         expect(response).to have_http_status(:ok)
-        expect(withdrawal.reload.status).to eq("paid")
-        expect(funded_and_released_escrow.ledger_entries.where(account: %w[agent_payable cash_out]).count).to eq(2)
-      end
-
-      it "marks withdrawal failed on error without writing ledger entries" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          data: {
-            transReference: "WD-#{withdrawal.id}-xyz",
-            ResponseCode: "1"
-          }
-        }, as: :json
-
-        expect(response).to have_http_status(:ok)
-        expect(withdrawal.reload.status).to eq("failed")
-      end
-    end
-
-    context "HTTP Basic Authentication" do
-      let!(:payment_tx) do
-        escrow.payment_transactions.create!(
-          direction: "collection",
-          provider: "jenga",
-          provider_channel: "mpesa",
-          provider_reference: "PR-#{escrow.id}-auth",
-          status: "pending",
-          amount_cents: escrow.amount_cents
-        )
-      end
-
-      before do
-        allow(Rails.application.config).to receive(:jenga).and_return({
-          environment: "sandbox",
-          ipn_username: "correct_user",
-          ipn_password: "correct_password"
-        })
-      end
-
-      it "rejects requests with missing or invalid credentials" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          transaction: { reference: "PR-#{escrow.id}-auth", status: "SUCCESS" }
-        }, headers: { "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("wrong", "credentials") }
-
-        expect(response).to have_http_status(:unauthorized)
-      end
-
-      it "accepts requests with valid credentials" do
-        post "/api/v1/payments/jenga_ipn", params: {
-          transaction: { reference: "PR-#{escrow.id}-auth", status: "SUCCESS" }
-        }, headers: { "HTTP_AUTHORIZATION" => ActionController::HttpAuthentication::Basic.encode_credentials("correct_user", "correct_password") }
-
-        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["status"]).to eq(200)
       end
     end
   end

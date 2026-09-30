@@ -12,4 +12,4 @@
     cron: "*/5 * * * *"   # every 5 minutes
     class: ReconcilePendingPaymentsJob
     queue: reconciliation
-    description: "Poll Jenga for stuck pending PaymentTransactions and resolve them"
+    description: "Poll Pesapal GetTransactionStatus for stuck pending PaymentTransactions and resolve them"

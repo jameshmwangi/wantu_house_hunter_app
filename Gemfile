@@ -53,7 +53,7 @@ group :development, :test do
   gem "rspec-rails", "~> 6.0"
   gem "factory_bot_rails", "~> 6.2"
   gem "faker", "~> 3.2"
-  gem "dotenv-rails", "~> 3.1"  # Load .env into ENV for local Jenga API credentials
+  gem "dotenv-rails", "~> 3.1"  # Load .env into ENV for local Pesapal API credentials
 end
 
 group :test do
@@ -76,5 +76,5 @@ group :development do
 end
 
 
-gem "faraday", "~> 2.7"  # HTTP client for Jenga API calls
+gem "faraday", "~> 2.7"  # HTTP client for Pesapal API calls
 gem "json", "< 3.0"

@@ -32,6 +32,14 @@ services:
         sync: false
       - key: AWS_BUCKET
         sync: false
+      - key: PESAPAL_ENV
+        value: production
+      - key: PESAPAL_CONSUMER_KEY
+        sync: false
+      - key: PESAPAL_CONSUMER_SECRET
+        sync: false
+      - key: PESAPAL_IPN_ID
+        sync: false
 
   - type: worker
     name: wantu-sidekiq
@@ -50,3 +58,11 @@ services:
         sync: false
       - key: SECRET_KEY_BASE
         generateValue: true
+      - key: PESAPAL_ENV
+        value: production
+      - key: PESAPAL_CONSUMER_KEY
+        sync: false
+      - key: PESAPAL_CONSUMER_SECRET
+        sync: false
+      - key: PESAPAL_IPN_ID
+        sync: false

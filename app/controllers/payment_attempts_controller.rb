@@ -9,9 +9,10 @@ class PaymentAttemptsController < ApplicationController
   end
 
   # POST /payment_attempts
-  # M-Pesa: initiates a real Jenga STK push and immediately returns a Turbo
-  # Stream that renders the "processing" spinner. The IPN callback (received by
-  # Api::V1::PaymentsController#ipn) pushes the final status via Turbo broadcast.
+  # M-Pesa: submits a Pesapal order and returns a Turbo Stream that renders
+  # the iframe with Pesapal's hosted payment page. The user completes payment
+  # there; the IPN callback (received by Api::V1::PaymentsController#ipn)
+  # pushes the final status via Turbo broadcast.
   #
   # Card / fallback: kept for non-M-Pesa paths (card is still simulated until
   # a live card gateway is wired in).
@@ -30,18 +31,18 @@ class PaymentAttemptsController < ApplicationController
         params[:phone_number].presence || current_user.phone_number.to_s
       )
 
-      @payment = @appointment.initiate_stk_payment!(
+      @payment = @appointment.initiate_pesapal_payment!(
         phone_number:  phone_number,
-        callback_url:  api_v1_jenga_ipn_url
+        callback_url:  api_v1_pesapal_callback_url
       )
 
       respond_to do |format|
         format.turbo_stream # renders create.turbo_stream.erb
-        format.html { redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.stk_initiated', default: 'Check your phone to complete M-Pesa payment.') }
+        format.html { redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.stk_initiated', default: 'Complete your payment on the Pesapal page.') }
       end
 
     else
-      # Legacy simulation path for card (and non-production M-Pesa when Jenga
+      # Legacy simulation path for card (and non-production M-Pesa when Pesapal
       # credentials are absent — PaymentGatewayAdapter auto-falls back to simulation)
       simulation = params[:payment_simulation].presence || 'success'
       @payment = @appointment.process_payment!(payment_method: payment_method, simulation: simulation)
@@ -53,8 +54,8 @@ class PaymentAttemptsController < ApplicationController
       end
     end
 
-  rescue JengaClient::JengaError => e
-    Rails.logger.error "[PaymentAttemptsController#create] JengaError: #{e.message}"
+  rescue PesapalClient::PesapalError => e
+    Rails.logger.error "[PaymentAttemptsController#create] PesapalError: #{e.message}"
     redirect_to listing_path(@appointment.listing),
                 alert: t('payment_attempts.gateway_error', default: 'Payment initiation failed — please try again.')
   rescue => e

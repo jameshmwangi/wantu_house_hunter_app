@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-# Polls Jenga for PaymentTransactions that have been stuck in "pending" status
+# Polls Pesapal for PaymentTransactions that have been stuck in "pending" status
 # for more than STALE_THRESHOLD, applies the correct ledger outcome, and
 # resolves the associated EscrowTransaction or Withdrawal.
 #
-# This guards against missed IPN callbacks — Jenga docs note that callbacks can
-# occasionally be missed, so a reconciliation loop is necessary for production.
+# This guards against missed IPN callbacks. Pesapal docs note that
+# GetTransactionStatus should always be used to verify — never trust IPN alone.
 #
 # Scheduled via Sidekiq cron (config/sidekiq.yml) — runs every 5 minutes.
 # Also safe to enqueue ad-hoc: ReconcilePendingPaymentsJob.perform_later
@@ -42,59 +42,62 @@ class ReconcilePendingPaymentsJob < ApplicationJob
       country_code: country_code
     )
 
-    # Normalise the result status across Jenga response shapes
-    status = (result.dig("status") || result.dig(:status) || "").upcase
+    # Normalise the status_code from Pesapal GetTransactionStatus response:
+    #   0 = INVALID (not final), 1 = COMPLETED, 2 = FAILED, 3 = REVERSED
+    status_code = (result["status_code"] || result[:status_code]).to_i
 
     case payment_transaction.direction
     when "collection"
-      reconcile_collection(payment_transaction, escrow, status)
+      reconcile_collection(payment_transaction, escrow, status_code)
     when "payout"
-      reconcile_payout(payment_transaction, status)
+      reconcile_payout(payment_transaction, status_code)
     end
   end
 
-  def reconcile_collection(payment_transaction, escrow, status)
+  def reconcile_collection(payment_transaction, escrow, status_code)
     return if escrow.nil?
+    return if status_code == 0 # 0 = INVALID / not yet final — wait for next run
 
     ActiveRecord::Base.transaction do
-      case status
-      when "SUCCESS"
+      case status_code
+      when 1 # COMPLETED
         payment_transaction.update!(status: "success")
         escrow.fund!(provider_reference: payment_transaction.provider_reference) unless escrow.funded? || escrow.released?
         broadcast_attempt_status!(payment_transaction, stk_status: "completed", outcome: "success")
         Rails.logger.info "[ReconcilePendingPaymentsJob] Funded escrow ##{escrow.id} via reconciliation"
-      when "FAILED", "CANCELLED"
+      when 2, 3 # FAILED or REVERSED
         payment_transaction.update!(status: "failed")
         broadcast_attempt_status!(payment_transaction, stk_status: "failed", outcome: "failed")
         Rails.logger.info "[ReconcilePendingPaymentsJob] Marked collection ##{payment_transaction.id} failed via reconciliation"
       else
-        # Still no final status from Jenga — mark timed_out if old enough
+        # Still no final status — mark timed_out if old enough
         if payment_transaction.created_at < 90.seconds.ago
           broadcast_attempt_status!(payment_transaction, stk_status: "timed_out", outcome: "failed")
           Rails.logger.info "[ReconcilePendingPaymentsJob] Timed out collection ##{payment_transaction.id}"
         else
-          Rails.logger.info "[ReconcilePendingPaymentsJob] Collection ##{payment_transaction.id} still pending (status=#{status})"
+          Rails.logger.info "[ReconcilePendingPaymentsJob] Collection ##{payment_transaction.id} still pending (status_code=#{status_code})"
         end
       end
     end
   end
 
-  def reconcile_payout(payment_transaction, status)
+  def reconcile_payout(payment_transaction, status_code)
     withdrawal = Withdrawal.find_by(payment_transaction: payment_transaction)
     return if withdrawal.nil?
+    return if status_code == 0 # still pending
 
     ActiveRecord::Base.transaction do
-      case status
-      when "SUCCESS"
+      case status_code
+      when 1 # COMPLETED
         payment_transaction.update!(status: "success")
         withdrawal.mark_paid! if withdrawal.processing?
         Rails.logger.info "[ReconcilePendingPaymentsJob] Marked withdrawal ##{withdrawal.id} paid via reconciliation"
-      when "FAILED", "CANCELLED"
+      when 2, 3 # FAILED or REVERSED
         payment_transaction.update!(status: "failed")
         withdrawal.mark_failed! if withdrawal.processing?
         Rails.logger.info "[ReconcilePendingPaymentsJob] Marked withdrawal ##{withdrawal.id} failed via reconciliation"
       else
-        Rails.logger.info "[ReconcilePendingPaymentsJob] Payout ##{payment_transaction.id} still pending (status=#{status})"
+        Rails.logger.info "[ReconcilePendingPaymentsJob] Payout ##{payment_transaction.id} still pending (status_code=#{status_code})"
       end
     end
   end

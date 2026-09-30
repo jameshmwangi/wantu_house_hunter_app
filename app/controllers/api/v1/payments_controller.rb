@@ -2,49 +2,47 @@
 
 module Api
   module V1
-    # Handles Jenga API payment lifecycle:
-    #   POST /api/v1/escrow_transactions/:escrow_transaction_id/pay  — initiate collection
-    #   POST /api/v1/payments/jenga_ipn                              — unified Jenga IPN callback
+    # Handles Pesapal API 3.0 payment lifecycle.
     #
-    # Jenga allows only ONE registered IPN URL per environment on JengaHQ.
-    # Both collection notifications (M-Pesa STK push) and payout notifications
-    # (Send Money) are received at /api/v1/payments/jenga_ipn and dispatched
-    # based on the reference prefix:
-    #   - "OR-..." or "PR-..." -> collection (home seeker funding escrow)
-    #   - "WD-..."             -> payout (agent withdrawal payout)
+    # Routes:
+    #   POST /api/v1/escrow_transactions/:escrow_transaction_id/pay — initiate collection
+    #   POST /api/v1/pesapal/ipn                                    — Pesapal IPN callback
     #
-    # Jenga authenticates each IPN POST with HTTP Basic Auth using credentials
-    # chosen during IPN registration on JengaHQ.
-    # IPN endpoints skip CSRF (server-to-server callbacks) and always respond
-    # with { status: "received" } so Jenga acknowledges receipt and stops retrying.
+    # Pesapal flow (from PHP reference in development1/PesaPal-main):
+    #   1. POST #create → PesapalClient#submit_order → returns redirect_url
+    #   2. Front-end loads redirect_url in iframe (user pays on Pesapal's hosted page)
+    #   3. Pesapal POSTs IPN to /api/v1/pesapal/ipn with body:
+    #        { "OrderTrackingId": "...", "OrderNotificationType": "IPNCHANGE",
+    #          "OrderMerchantReference": "..." }
+    #   4. #ipn calls GetTransactionStatus?orderTrackingId=... and updates records
+    #   5. Pesapal also redirects browser (GET) to callback_url:
+    #        ?OrderTrackingId=...&OrderMerchantReference=...&OrderNotificationType=CALLBACKURL
+    #      That browser callback is handled by payment_attempts#callback (not this controller).
+    #
+    # IPN endpoint skips CSRF (server-to-server POST from Pesapal).
+    # IPN must ALWAYS respond 200 with confirmation JSON — or Pesapal will keep retrying.
     class PaymentsController < ApplicationController
-      # IPN callbacks are server-to-server POSTs from Jenga — skip CSRF.
-      protect_from_forgery with: :null_session, only: [:ipn, :payout_ipn]
-
-      # Verify HTTP Basic Auth sent by Jenga on every callback.
-      before_action :verify_ipn_auth!, only: [:ipn, :payout_ipn]
+      # IPN is a server-to-server POST from Pesapal — skip CSRF
+      protect_from_forgery with: :null_session, only: [:ipn]
 
       before_action :authenticate_user!, only: [:create]
 
       # POST /api/v1/escrow_transactions/:escrow_transaction_id/pay
       #
-      # Initiates an M-Pesa STK Push (Kenya) or MoMo collection (Uganda).
-      # Creates a pending PaymentTransaction. The actual funded status arrives
-      # via #ipn once Jenga's IPN fires on the home seeker's confirmation.
+      # Initiates a Pesapal order. Returns redirect_url for the hosted payment page.
+      # Front-end should load redirect_url in an iframe so the user completes payment.
       def create
         escrow = EscrowTransaction.find(params[:escrow_transaction_id])
 
-        # Guard: only the assigned home seeker can pay
         unless escrow.home_seeker_id == current_user.id
           return render json: { error: "Not authorized" }, status: :forbidden
         end
 
-        # Guard: must be in pending status
         unless escrow.pending?
           return render json: { error: "Escrow is not in a payable state" }, status: :unprocessable_entity
         end
 
-        # Zero-amount: short-circuit — no gateway call needed (design doc §1.4)
+        # Zero-amount: short-circuit — no gateway call needed
         if escrow.amount_cents.zero?
           escrow.fund!
           return render json: { status: "funded", message: "Zero-amount escrow funded immediately" }
@@ -53,172 +51,172 @@ module Api
         adapter = PaymentGatewayAdapter.new
         result  = adapter.initiate_collection(
           escrow,
-          home_seeker: current_user,
-          callback_url: api_v1_jenga_ipn_url
+          home_seeker:  current_user,
+          callback_url: api_v1_pesapal_callback_url
         )
 
-        # Record the pending PaymentTransaction — will be updated by IPN
+        # Store order_tracking_id as provider_reference for IPN + reconciliation lookup
         escrow.payment_transactions.create!(
-          direction:         "collection",
-          provider:          result[:provider],
-          provider_channel:  escrow.country == "KE" ? "mpesa" : "mobile_money_ug",
-          provider_reference: result[:provider_reference],
-          status:            "pending",
-          amount_cents:      escrow.amount_cents
+          direction:          "collection",
+          provider:           result[:provider],
+          provider_channel:   escrow.country == "KE" ? "mpesa" : "mobile_money_ug",
+          provider_reference: result[:provider_reference],   # = order_tracking_id
+          status:             "pending",
+          amount_cents:       escrow.amount_cents
         )
 
         render json: {
-          status:            "pending",
-          provider_reference: result[:provider_reference],
-          message:           "Payment initiated — awaiting confirmation"
+          status:             "pending",
+          order_tracking_id:  result[:provider_reference],
+          merchant_reference: result[:merchant_reference],
+          redirect_url:       result[:redirect_url],
+          message:            "Order created — load redirect_url in an iframe to complete payment"
         }
-      rescue PaymentGatewayAdapter => e
-        render json: { error: e.message }, status: :unprocessable_entity
-      rescue JengaClient::JengaError => e
-        Rails.logger.error "[PaymentsController#create] JengaError: #{e.message}"
+      rescue PaymentGatewayAdapter::Error => e
+        render json: { error: e.message }, status: :service_unavailable
+      rescue PesapalClient::PesapalError => e
+        Rails.logger.error "[PaymentsController#create] PesapalError: #{e.message}"
         render json: { error: "Payment initiation failed — please try again" }, status: :service_unavailable
       end
 
-      # POST /api/v1/payments/jenga_ipn
-      # (also aliased from /api/v1/payments/ipn and /api/v1/payouts/ipn for backwards compatibility)
+      # POST /api/v1/pesapal/ipn
       #
-      # Unified IPN endpoint for both collection and payout callbacks.
-      # Dispatches on the reference prefix:
-      #   OR- / PR- -> collection (home seeker funding escrow)
-      #   WD-       -> payout (agent withdrawal payout)
-      # Always responds 200 { status: "received" } so Jenga stops retrying.
+      # Pesapal server-to-server IPN callback.
+      # Payload (confirmed from development1/PesaPal-main/pin.json):
+      #   { "OrderTrackingId": "cb7fec53-...", "OrderNotificationType": "IPNCHANGE",
+      #     "OrderMerchantReference": "607821822..." }
+      #
+      # Must ALWAYS respond 200 with confirmation JSON (Pesapal retries if it doesn't):
+      #   { "orderNotificationType": "IPNCHANGE", "orderTrackingId": "...",
+      #     "orderMerchantReference": "...", "status": 200 }
       def ipn
-        reference = callback_reference
+        order_tracking_id      = params[:OrderTrackingId]      || params[:orderTrackingId]
+        order_merchant_ref     = params[:OrderMerchantReference] || params[:orderMerchantReference]
+        order_notification_type = params[:OrderNotificationType] || params[:orderNotificationType] || "IPNCHANGE"
 
-        case reference
-        when /\AOR-|\APR-/
-          confirm_collection!(reference)
-        when /\AWD-/
-          confirm_payout!(reference)
+        if order_tracking_id.present?
+          process_pesapal_ipn!(order_tracking_id)
         else
-          Rails.logger.warn "[PaymentsController#ipn] Jenga IPN with unrecognized reference: #{reference.inspect}"
+          Rails.logger.warn "[PaymentsController#ipn] Pesapal IPN missing OrderTrackingId. Params: #{params.inspect}"
         end
 
-        render json: { status: "received" }
+        # Confirmation response Pesapal expects — always respond 200
+        render json: {
+          orderNotificationType:  order_notification_type,
+          orderTrackingId:        order_tracking_id,
+          orderMerchantReference: order_merchant_ref,
+          status:                 200
+        }
       rescue => e
-        Rails.logger.error "[PaymentsController#ipn] Error: #{e.class} — #{e.message}"
-        render json: { status: "received" }
+        Rails.logger.error "[PaymentsController#ipn] #{e.class}: #{e.message}"
+        # Still respond 200 with status 500 body so Pesapal knows we received but errored
+        render json: {
+          orderNotificationType:  "IPNCHANGE",
+          orderTrackingId:        params[:OrderTrackingId],
+          orderMerchantReference: params[:OrderMerchantReference],
+          status:                 500
+        }
       end
-      alias_method :payout_ipn, :ipn
+
+      # GET /api/v1/pesapal/callback
+      #
+      # Browser redirect-back from Pesapal after the user completes (or cancels) payment.
+      # Params (from response-page.php reference):
+      #   ?OrderTrackingId=...&OrderMerchantReference=...&OrderNotificationType=CALLBACKURL
+      #
+      # This is a browser GET — do NOT return JSON. Call GetTransactionStatus and
+      # redirect to the payment_status page so the user sees the result.
+      def callback
+        order_tracking_id  = params[:OrderTrackingId]
+        merchant_reference = params[:OrderMerchantReference]
+
+        if order_tracking_id.blank?
+          Rails.logger.warn "[PaymentsController#callback] No OrderTrackingId in callback params"
+          return redirect_to root_path, alert: "Payment callback received without order tracking ID"
+        end
+
+        # Look up the PaymentAttempt by provider_reference (= order_tracking_id)
+        payment_attempt = PaymentAttempt.find_by(provider_reference: order_tracking_id)
+
+        if payment_attempt
+          # If not yet resolved, call GetTransactionStatus now (browser is here, good time to check)
+          if payment_attempt.stk_status == "processing"
+            begin
+              status_response = PesapalClient.new.get_transaction_status(order_tracking_id)
+              status_code     = status_response["status_code"].to_i
+              if status_code == 1
+                payment_attempt.update!(stk_status: "completed", outcome: "success")
+              elsif status_code.in?([2, 3])
+                payment_attempt.update!(stk_status: "failed", outcome: "failed")
+              end
+            rescue PesapalClient::PesapalError => e
+              Rails.logger.error "[PaymentsController#callback] GetTransactionStatus failed: #{e.message}"
+            end
+          end
+
+          redirect_to payment_attempt_status_path(
+            viewing_appointment_id: payment_attempt.viewing_appointment_id,
+            id: payment_attempt.id
+          )
+        else
+          Rails.logger.warn "[PaymentsController#callback] No PaymentAttempt for OrderTrackingId=#{order_tracking_id}"
+          redirect_to root_path, notice: "Payment received — we will confirm your booking shortly."
+        end
+      end
 
       private
 
-      def confirm_collection!(reference)
-        payment_transaction = PaymentTransaction.find_by(provider_reference: reference)
+      # Called from #ipn — fetches GetTransactionStatus and updates records.
+      def process_pesapal_ipn!(order_tracking_id)
+        payment_transaction = PaymentTransaction.find_by(provider_reference: order_tracking_id)
         unless payment_transaction
-          Rails.logger.warn "[PaymentsController#ipn] No PaymentTransaction for reference=#{reference}"
+          Rails.logger.warn "[PaymentsController#ipn] No PaymentTransaction for OrderTrackingId=#{order_tracking_id}"
           return
         end
 
-        escrow = payment_transaction.escrow_transaction
         return unless payment_transaction.status == "pending" # idempotent
 
-        success = ipn_collection_success?
+        # Call GetTransactionStatus — same pattern as response-page.php in PHP reference
+        status_response = PesapalClient.new.get_transaction_status(order_tracking_id)
+        status_code = status_response["status_code"].to_i
+
+        # 0 = INVALID (not final yet), 1 = COMPLETED, 2 = FAILED, 3 = REVERSED
+        return if status_code == 0 # still pending — wait for next IPN
+
+        success = (status_code == 1)
+        escrow  = payment_transaction.escrow_transaction
+
         ActiveRecord::Base.transaction do
           if success
             payment_transaction.update!(status: "success", raw_payload: safe_payload)
-            # fund! writes the ledger pair internally via post_pair!
-            escrow.fund!(provider_reference: reference, payload: safe_payload)
+            escrow&.fund!(provider_reference: order_tracking_id, payload: safe_payload) unless escrow&.funded? || escrow&.released?
           else
             payment_transaction.update!(status: "failed", raw_payload: safe_payload)
           end
         end
 
-        # Push the live status update to the browser tab that initiated this STK push.
-        # The PaymentAttempt links back via provider_reference.
-        broadcast_stk_status!(reference, success: success)
+        broadcast_pesapal_status!(order_tracking_id, success: success)
+      rescue PesapalClient::PesapalError => e
+        Rails.logger.error "[PaymentsController#ipn] GetTransactionStatus failed: #{e.message}"
       end
 
-      def confirm_payout!(reference)
-        payment_transaction = PaymentTransaction.find_by(provider_reference: reference)
-        unless payment_transaction
-          Rails.logger.warn "[PaymentsController#ipn] No PaymentTransaction for reference=#{reference}"
-          return
-        end
-
-        withdrawal = payment_transaction.withdrawal || Withdrawal.find_by(payment_transaction: payment_transaction)
-        unless withdrawal
-          Rails.logger.warn "[PaymentsController#ipn] No Withdrawal for payment_transaction ##{payment_transaction.id}"
-          return
-        end
-
-        return unless withdrawal.processing? # idempotent
-
-        success = ipn_payout_success?
-        ActiveRecord::Base.transaction do
-          if success
-            payment_transaction.update!(status: "success", raw_payload: safe_payload)
-            withdrawal.mark_paid!
-          else
-            payment_transaction.update!(status: "failed", raw_payload: safe_payload)
-            withdrawal.mark_failed!
-          end
-        end
-      end
-
-      # Looks up the PaymentAttempt for this provider_reference, updates its
-      # stk_status, and broadcasts a Turbo Stream replace to the open browser tab.
-      def broadcast_stk_status!(reference, success:)
-        payment_attempt = PaymentAttempt.find_by(provider_reference: reference)
+      # Push the live status update to any open browser tab via Turbo Streams.
+      def broadcast_pesapal_status!(order_tracking_id, success:)
+        payment_attempt = PaymentAttempt.find_by(provider_reference: order_tracking_id)
         return unless payment_attempt
 
-        new_stk_status = success ? 'completed' : 'failed'
-        new_outcome    = success ? 'success' : 'failed'
+        new_stk_status = success ? "completed" : "failed"
+        new_outcome    = success ? "success"   : "failed"
         payment_attempt.update!(stk_status: new_stk_status, outcome: new_outcome)
 
         Turbo::StreamsChannel.broadcast_replace_to(
           payment_attempt,
-          target: "payment_status",
+          target:  "payment_status",
           partial: "payment_attempts/status",
-          locals: { payment: payment_attempt }
+          locals:  { payment: payment_attempt }
         )
       rescue => e
-        # Non-fatal — the reconcile job will clean up if broadcast fails
-        Rails.logger.error "[PaymentsController#broadcast_stk_status!] #{e.class}: #{e.message}"
-      end
-
-      # Confirms this POST genuinely came from Jenga, using HTTP Basic Auth
-      # with credentials configured when creating the IPN entry in JengaHQ.
-      # Bypasses auth check in non-production if JENGA_IPN_USERNAME is not set.
-      def verify_ipn_auth!
-        config = Rails.application.config.jenga
-        return true if config[:ipn_username].blank? && !Rails.env.production?
-
-        authenticate_or_request_with_http_basic do |username, password|
-          ActiveSupport::SecurityUtils.secure_compare(username.to_s, config[:ipn_username].to_s) &&
-            ActiveSupport::SecurityUtils.secure_compare(password.to_s, config[:ipn_password].to_s)
-        end
-      end
-
-      # Extract the provider_reference from the IPN payload.
-      # Jenga may deliver references under several keys across endpoints.
-      def callback_reference
-        (params.dig(:transaction, :reference) ||
-          params[:transactionReference]       ||
-          params[:Reference]                  ||
-          params.dig(:data, :transReference)  ||
-          params.dig(:transfer, :reference)   ||
-          params[:reference]                  ||
-          params[:paymentReference]).to_s
-      end
-
-      # Determine if a collection IPN signals success.
-      def ipn_collection_success?
-        params.dig(:transaction, :status)&.upcase == "SUCCESS" ||
-          params[:status]&.upcase == "SUCCESS"
-      end
-
-      # Determine if a payout IPN signals success.
-      # Jenga Send Money success is indicated by ResponseCode "0".
-      def ipn_payout_success?
-        params.dig(:data, :ResponseCode) == "0" ||
-          params.dig(:data, :status)&.upcase == "SUCCESS" ||
-          params[:status]&.upcase == "SUCCESS"
+        Rails.logger.error "[PaymentsController#broadcast_pesapal_status!] #{e.class}: #{e.message}"
       end
 
       # Safe subset of params for storing in raw_payload (jsonb).

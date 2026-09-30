@@ -71,17 +71,18 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "visits/:id/confirm", to: "visits#confirm"
 
-      # Jenga payment routes
-      # Initiate collection (STK push / MoMo) for a specific escrow transaction
+      # Pesapal payment routes
+      # Initiate collection (submit order) for a specific escrow transaction
       post "escrow_transactions/:escrow_transaction_id/pay", to: "payments#create",
            as: :escrow_transaction_pay
 
-      # Jenga unified callback URL (single IPN registered in JengaHQ for collection & payouts)
-      post "payments/jenga_ipn", to: "payments#ipn", as: :jenga_ipn
+      # Pesapal IPN — server-to-server POST from Pesapal after payment status changes
+      # Payload: { OrderTrackingId:, OrderNotificationType:, OrderMerchantReference: }
+      post "pesapal/ipn", to: "payments#ipn", as: :pesapal_ipn
 
-      # Backwards-compatible aliases in case previous sandbox registrations point here
-      post "payments/ipn", to: "payments#ipn", as: :payments_ipn
-      post "payouts/ipn",  to: "payments#ipn", as: :payouts_ipn
+      # Pesapal browser callback — GET redirect from Pesapal after user completes payment
+      # Params: ?OrderTrackingId=...&OrderMerchantReference=...&OrderNotificationType=CALLBACKURL
+      get  "pesapal/callback", to: "payments#callback", as: :pesapal_callback
     end
   end
 

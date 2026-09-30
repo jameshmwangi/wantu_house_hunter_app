@@ -35,15 +35,17 @@ class ViewingAppointment < ApplicationRecord
     AppointmentMailer.public_send(mailer_method, self).deliver_later
   end
 
-  # Real Jenga M-Pesa STK Push flow.
-  # Creates the escrow (if absent), initiates collection via the adapter,
-  # records a PaymentAttempt in the "processing" STK state, and returns it.
-  # The final outcome arrives asynchronously via the Jenga IPN callback.
+  # Real Pesapal M-Pesa flow (via hosted payment page).
+  # Creates the escrow (if absent), submits a Pesapal order via the adapter,
+  # records a PaymentAttempt in the "processing" state, and returns it.
+  # The adapter returns a redirect_url — the caller must store it so the view
+  # can render it in an iframe. The final outcome arrives asynchronously via
+  # the Pesapal IPN callback.
   #
-  # @param phone_number [String] normalised MSISDN (2547xxxxxxxx)
-  # @param callback_url [String] the registered Jenga IPN URL
+  # @param phone_number [String] normalised MSISDN — prefilled on Pesapal's page
+  # @param callback_url [String] browser redirect-back URL after payment
   # @return [PaymentAttempt]
-  def initiate_stk_payment!(phone_number:, callback_url:)
+  def initiate_pesapal_payment!(phone_number:, callback_url:)
     # Short-circuit if a processing attempt already exists and is recent (< 2 mins)
     existing = payment_attempts
                  .where(outcome: 'pending', stk_status: 'processing')
@@ -95,8 +97,8 @@ class ViewingAppointment < ApplicationRecord
     )
 
     payment
-  rescue PaymentGatewayAdapter::Error, JengaClient::JengaError => e
-    Rails.logger.error "[ViewingAppointment#initiate_stk_payment!] #{e.class}: #{e.message}"
+  rescue PaymentGatewayAdapter::Error, PesapalClient::PesapalError => e
+    Rails.logger.error "[ViewingAppointment#initiate_pesapal_payment!] #{e.class}: #{e.message}"
     raise
   end
 
