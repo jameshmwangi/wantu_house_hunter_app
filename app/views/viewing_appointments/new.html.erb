@@ -63,26 +63,6 @@
           </div>
         </div>
 
-        <%# Payment Method selection %>
-        <div class="mb-4">
-          <h6 class="fw-bold text-uppercase small mb-3"><%= t('payment_attempts.fields.payment_method') %></h6>
-          <div class="d-flex gap-3" data-controller="payment-method">
-            <label class="wantu-btn wantu-btn--primary flex-fill text-center"
-                   style="cursor:pointer"
-                   data-payment-method-target="button"
-                   data-action="click->payment-method#select">
-              <input type="radio" name="payment_method" value="mpesa" class="d-none" checked>
-              <%= t('payment_attempts.fields.mpesa') %>
-            </label>
-            <label class="wantu-btn wantu-btn--outline flex-fill text-center"
-                   style="cursor:pointer"
-                   data-payment-method-target="button"
-                   data-action="click->payment-method#select">
-              <input type="radio" name="payment_method" value="card" class="d-none">
-              <%= t('payment_attempts.fields.card') %>
-            </label>
-          </div>
-        </div>
 
         <%# Amount + actions %>
         <div class="mb-4">

@@ -45,4 +45,29 @@ RSpec.describe 'PaymentAttempts', type: :request do
       expect(flash[:alert]).to be_present
     end
   end
+
+  describe 'GET /payment_attempts/new' do
+    it 'redirects to Pesapal checkout when payment attempt has a redirect_url' do
+      fake_payment = instance_double(
+        PaymentAttempt,
+        redirect_url: 'https://pay.pesapal.com/v3/transactions/order/SubmitOrderRequest?OrderTrackingId=fake-123',
+        outcome: 'pending'
+      )
+      allow_any_instance_of(ViewingAppointment).to receive(:initiate_pesapal_payment!)
+        .and_return(fake_payment)
+
+      get new_payment_attempt_path, params: { viewing_appointment_id: appointment.id }
+
+      expect(response).to redirect_to('https://pay.pesapal.com/v3/transactions/order/SubmitOrderRequest?OrderTrackingId=fake-123')
+    end
+
+    it 'redirects to listing if appointment is already paid' do
+      appointment.update!(fee_status: 'paid')
+
+      get new_payment_attempt_path, params: { viewing_appointment_id: appointment.id }
+
+      expect(response).to redirect_to(listing_path(listing))
+      expect(flash[:alert]).to be_present
+    end
+  end
 end

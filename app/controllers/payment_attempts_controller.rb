@@ -4,57 +4,80 @@ class PaymentAttemptsController < ApplicationController
 
   def new
     authorize! :create, PaymentAttempt
-    @listing        = @appointment.listing
-    @payment_method = params[:payment_method].presence || 'mpesa'
+
+    if @appointment.fee_status == 'paid'
+      return redirect_to listing_path(@appointment.listing),
+                          alert: t('payment_attempts.already_paid', default: 'This viewing appointment fee has already been paid.')
+    end
+
+    phone_number = PaymentAttempt.normalize_msisdn(current_user.phone_number.to_s)
+    @payment = @appointment.initiate_pesapal_payment!(
+      phone_number: phone_number,
+      callback_url: api_v1_pesapal_callback_url
+    )
+
+    if @payment.redirect_url.present?
+      redirect_to @payment.redirect_url, allow_other_host: true
+    elsif @payment.outcome == 'success'
+      redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.success', reference: @payment.payment_reference)
+    else
+      redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.stk_initiated', default: 'Complete your payment on the Pesapal page.')
+    end
+  rescue PaymentGatewayAdapter::Error, PesapalClient::PesapalError => e
+    Rails.logger.error "[PaymentAttemptsController#new] PesapalError: #{e.message}"
+    redirect_to listing_path(@appointment.listing),
+                alert: t('payment_attempts.gateway_error', default: 'Payment initiation failed — please try again.')
+  rescue => e
+    Rails.logger.error "[PaymentAttemptsController#new] Error: #{e.class} — #{e.message}"
+    Rails.logger.error e.backtrace.first(10).join("\n")
+    redirect_to listing_path(@appointment.listing),
+                alert: t('payment_attempts.failure')
   end
 
   # POST /payment_attempts
-  # M-Pesa: submits a Pesapal order and returns a Turbo Stream that renders
-  # the iframe with Pesapal's hosted payment page. The user completes payment
-  # there; the IPN callback (received by Api::V1::PaymentsController#ipn)
-  # pushes the final status via Turbo broadcast.
-  #
-  # Card / fallback: kept for non-M-Pesa paths (card is still simulated until
-  # a live card gateway is wired in).
   def create
     authorize! :create, PaymentAttempt
 
     if @appointment.fee_status == 'paid'
       return redirect_to listing_path(@appointment.listing),
-                          alert: t('payment_attempts.already_paid')
+                          alert: t('payment_attempts.already_paid', default: 'This viewing appointment fee has already been paid.')
     end
 
-    payment_method = params[:payment_method].presence || 'mpesa'
-
-    if payment_method == 'mpesa'
-      phone_number = PaymentAttempt.normalize_msisdn(
-        params[:phone_number].presence || current_user.phone_number.to_s
-      )
-
-      @payment = @appointment.initiate_pesapal_payment!(
-        phone_number:  phone_number,
-        callback_url:  api_v1_pesapal_callback_url
-      )
-
-      respond_to do |format|
-        format.turbo_stream # renders create.turbo_stream.erb
-        format.html { redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.stk_initiated', default: 'Complete your payment on the Pesapal page.') }
-      end
-
-    else
-      # Legacy simulation path for card (and non-production M-Pesa when Pesapal
-      # credentials are absent — PaymentGatewayAdapter auto-falls back to simulation)
-      simulation = params[:payment_simulation].presence || 'success'
-      @payment = @appointment.process_payment!(payment_method: payment_method, simulation: simulation)
+    if params[:payment_simulation].present?
+      simulation = params[:payment_simulation]
+      @payment = @appointment.process_payment!(payment_method: 'mpesa', simulation: simulation)
 
       if @payment.outcome == 'success'
         redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.success', reference: @payment.payment_reference)
       else
         redirect_to listing_path(@appointment.listing), alert: t('payment_attempts.failure')
       end
+      return
     end
 
-  rescue PesapalClient::PesapalError => e
+    phone_number = PaymentAttempt.normalize_msisdn(
+      params[:phone_number].presence || current_user.phone_number.to_s
+    )
+
+    @payment = @appointment.initiate_pesapal_payment!(
+      phone_number:  phone_number,
+      callback_url:  api_v1_pesapal_callback_url
+    )
+
+    respond_to do |format|
+      format.turbo_stream # renders create.turbo_stream.erb
+      format.html do
+        if @payment.redirect_url.present?
+          redirect_to @payment.redirect_url, allow_other_host: true
+        elsif @payment.outcome == 'success'
+          redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.success', reference: @payment.payment_reference)
+        else
+          redirect_to listing_path(@appointment.listing), notice: t('payment_attempts.stk_initiated', default: 'Complete your payment on the Pesapal page.')
+        end
+      end
+    end
+
+  rescue PaymentGatewayAdapter::Error, PesapalClient::PesapalError => e
     Rails.logger.error "[PaymentAttemptsController#create] PesapalError: #{e.message}"
     redirect_to listing_path(@appointment.listing),
                 alert: t('payment_attempts.gateway_error', default: 'Payment initiation failed — please try again.')

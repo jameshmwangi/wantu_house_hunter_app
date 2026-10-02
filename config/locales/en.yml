@@ -298,6 +298,9 @@ en:
     new: "Make Payment"
     success: "Payment successful! Reference: %{reference}"
     failure: "Payment failed. Please try again."
+    gateway_error: "Payment initiation failed — please try again."
+    already_paid: "This viewing appointment fee has already been paid."
+    stk_initiated: "Booking created. Complete payment on the Pesapal page."
     fields:
       payment_method: "Payment Method"
       mpesa: "M-Pesa"

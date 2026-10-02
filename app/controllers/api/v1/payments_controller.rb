@@ -146,6 +146,8 @@ module Api
               status_code     = status_response["status_code"].to_i
               if status_code == 1
                 payment_attempt.update!(stk_status: "completed", outcome: "success")
+                escrow = payment_attempt.viewing_appointment.escrow_transaction
+                escrow&.fund!(provider_reference: order_tracking_id, payload: safe_payload) unless escrow&.funded? || escrow&.released?
               elsif status_code.in?([2, 3])
                 payment_attempt.update!(stk_status: "failed", outcome: "failed")
               end
@@ -154,10 +156,14 @@ module Api
             end
           end
 
-          redirect_to payment_attempt_status_path(
-            viewing_appointment_id: payment_attempt.viewing_appointment_id,
-            id: payment_attempt.id
-          )
+          listing = payment_attempt.viewing_appointment.listing
+          if payment_attempt.outcome == "success"
+            redirect_to listing_path(listing), notice: t('payment_attempts.success', reference: order_tracking_id, default: "Payment received — your viewing appointment is confirmed!")
+          elsif payment_attempt.outcome == "failed"
+            redirect_to listing_path(listing), alert: t('payment_attempts.failure', default: "Payment failed or was cancelled. Please try again.")
+          else
+            redirect_to listing_path(listing), notice: t('payment_attempts.stk_initiated', default: "Payment is being processed. We will confirm your booking shortly.")
+          end
         else
           Rails.logger.warn "[PaymentsController#callback] No PaymentAttempt for OrderTrackingId=#{order_tracking_id}"
           redirect_to root_path, notice: "Payment received — we will confirm your booking shortly."

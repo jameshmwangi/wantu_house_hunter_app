@@ -51,7 +51,7 @@ class ViewingAppointment < ApplicationRecord
                  .where(outcome: 'pending', stk_status: 'processing')
                  .where('created_at > ?', 2.minutes.ago)
                  .last
-    return existing if existing
+    return existing if existing && existing.redirect_url.present?
 
     # Zero-amount: skip gateway, fund immediately (design doc §1.4)
     if fee_amount.to_i == 0
