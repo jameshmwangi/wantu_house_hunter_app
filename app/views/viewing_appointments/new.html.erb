@@ -41,7 +41,7 @@
       </div>
 
       <%# Booking form %>
-      <%= form_with model: @appointment, url: listing_viewing_appointments_path(@listing), class: "needs-validation" do |f| %>
+      <%= form_with model: @appointment, url: listing_viewing_appointments_path(@listing), class: "needs-validation", data: { turbo: false } do |f| %>
         <div class="mb-4">
           <h5><%= t('viewing_appointments.fields.scheduled_at') %></h5>
           <p class="text-muted"><%= t('viewing_appointments.datetime_hint') %></p>
@@ -71,7 +71,7 @@
             <div class="bg-dark text-white py-3 px-4 rounded fw-bold text-center" style="min-width:120px">
               Ksh <%= number_with_delimiter(@listing.viewing_fee) %>
             </div>
-            <%= f.submit t('viewing_appointments.continue_to_payment', default: 'Continue to Payment'), class: "wantu-btn wantu-btn--primary flex-grow-1 py-3" %>
+            <%= f.submit t('viewing_appointments.continue_to_payment', default: 'Continue to Payment'), class: "wantu-btn wantu-btn--primary flex-grow-1 py-3", data: { turbo: false } %>
             <%= link_to t('actions.cancel'), listing_path(@listing), class: "wantu-btn wantu-btn--outline py-3 px-4" %>
           </div>
         </div>

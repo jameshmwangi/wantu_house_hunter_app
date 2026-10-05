@@ -26,7 +26,7 @@ class ViewingAppointmentsController < ApplicationController
       )
 
       if payment.redirect_url.present?
-        redirect_to payment.redirect_url, allow_other_host: true
+        redirect_to payment.redirect_url, allow_other_host: true, status: :see_other
       elsif payment.outcome == 'success'
         redirect_to listing_path(@listing), notice: t('payment_attempts.success', reference: payment.payment_reference)
       else

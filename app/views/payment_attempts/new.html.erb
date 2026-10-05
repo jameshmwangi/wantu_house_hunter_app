@@ -79,8 +79,9 @@
 
             <%= form_with url: payment_attempts_path, method: :post,
                   id: "checkout_form",
-                  data: { controller: "disable-on-submit",
-                          action: "submit->disable-on-submit#disable turbo:submit-end->disable-on-submit#reenable" } do |f| %>
+                  data: { turbo: false,
+                          controller: "disable-on-submit",
+                          action: "submit->disable-on-submit#disable" } do |f| %>
               <%= f.hidden_field :viewing_appointment_id, value: @appointment.id, name: :viewing_appointment_id %>
               <input type="hidden" name="payment_method" value="mpesa">
 

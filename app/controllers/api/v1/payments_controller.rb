@@ -132,7 +132,7 @@ module Api
 
         if order_tracking_id.blank?
           Rails.logger.warn "[PaymentsController#callback] No OrderTrackingId in callback params"
-          return redirect_to root_path, alert: "Payment callback received without order tracking ID"
+          return break_out_or_redirect(root_path, :alert, "Payment callback received without order tracking ID")
         end
 
         # Look up the PaymentAttempt by provider_reference (= order_tracking_id)
@@ -158,19 +158,45 @@ module Api
 
           listing = payment_attempt.viewing_appointment.listing
           if payment_attempt.outcome == "success"
-            redirect_to listing_path(listing), notice: t('payment_attempts.success', reference: order_tracking_id, default: "Payment received — your viewing appointment is confirmed!")
+            break_out_or_redirect(listing_path(listing), :notice, t('payment_attempts.success', reference: order_tracking_id, default: "Payment received — your viewing appointment is confirmed!"))
           elsif payment_attempt.outcome == "failed"
-            redirect_to listing_path(listing), alert: t('payment_attempts.failure', default: "Payment failed or was cancelled. Please try again.")
+            break_out_or_redirect(listing_path(listing), :alert, t('payment_attempts.failure', default: "Payment failed or was cancelled. Please try again."))
           else
-            redirect_to listing_path(listing), notice: t('payment_attempts.stk_initiated', default: "Payment is being processed. We will confirm your booking shortly.")
+            break_out_or_redirect(listing_path(listing), :notice, t('payment_attempts.stk_initiated', default: "Payment is being processed. We will confirm your booking shortly."))
           end
         else
           Rails.logger.warn "[PaymentsController#callback] No PaymentAttempt for OrderTrackingId=#{order_tracking_id}"
-          redirect_to root_path, notice: "Payment received — we will confirm your booking shortly."
+          break_out_or_redirect(root_path, :notice, "Payment received — we will confirm your booking shortly.")
         end
       end
 
       private
+
+      # Helper for browser callbacks to break out of Pesapal iframe if embedded,
+      # or perform normal navigation if already at top-level.
+      def break_out_or_redirect(target_path, flash_type, message)
+        flash[flash_type] = message
+        render html: <<~HTML.html_safe, layout: false
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Redirecting...</title>
+            <script>
+              if (window.top && window.top !== window) {
+                window.top.location.href = #{target_path.to_json};
+              } else {
+                window.location.href = #{target_path.to_json};
+              }
+            </script>
+          </head>
+          <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+            <p>#{message}</p>
+            <p><a href="#{ERB::Util.html_escape(target_path)}" target="_top">Click here if not redirected automatically</a>.</p>
+          </body>
+          </html>
+        HTML
+      end
 
       # Called from #ipn — fetches GetTransactionStatus and updates records.
       def process_pesapal_ipn!(order_tracking_id)

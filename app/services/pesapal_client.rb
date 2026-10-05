@@ -55,9 +55,15 @@ class PesapalClient
       key_mask    = Pesapal.mask_val(@config[:consumer_key])
       secret_mask = Pesapal.mask_val(@config[:consumer_secret])
 
-      # Log the full auth response with credential fingerprints so mismatches are diagnosable
+      logged_body = if response.body.is_a?(Hash) && response.body["token"].present?
+                      response.body.merge("token" => "[FILTERED]")
+                    else
+                      response.body
+                    end
+
+      # Log auth response with credential fingerprints so mismatches are diagnosable (token filtered)
       Rails.logger.info "[PesapalClient#token] status=#{response.status} env=#{@config[:environment]} " \
-                        "base_url=#{Pesapal.base_url} key=#{key_mask} secret=#{secret_mask} body=#{response.body.inspect}"
+                        "base_url=#{Pesapal.base_url} key=#{key_mask} secret=#{secret_mask} body=#{logged_body.inspect}"
 
       if response.status == 302
         location = response.headers["location"] || "(no Location header)"
