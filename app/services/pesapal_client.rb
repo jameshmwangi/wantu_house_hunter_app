@@ -52,6 +52,14 @@ class PesapalClient
         }
       end
 
+      if response.status == 302
+        location = response.headers["location"] || "(no Location header)"
+        raise PesapalError,
+              "Auth returned 302 redirect → #{location}. " \
+              "PESAPAL_ENV=#{@config[:environment]} does not match your credentials. " \
+              "Sandbox keys → PESAPAL_ENV=sandbox, live keys → PESAPAL_ENV=production."
+      end
+
       body = response.body
       unless response.success? && body.is_a?(Hash) && body["token"].present?
         err_msg = body.is_a?(Hash) ? (body["message"] || body.dig("error", "message") || body.inspect) : response.body.to_s
@@ -202,8 +210,20 @@ class PesapalClient
       req.body = body
     end
 
+    # A 302 typically means sandbox credentials hitting the production URL
+    # (or vice versa). Pesapal redirects to a login/error page instead of
+    # returning JSON — surface this clearly so it's easy to diagnose.
+    if response.status == 302
+      location = response.headers["location"] || "(no Location header)"
+      raise PesapalError,
+            "Pesapal returned 302 redirect on #{path} → #{location}. " \
+            "This usually means PESAPAL_ENV (#{@config[:environment]}) does not match your credentials. " \
+            "Sandbox keys must use PESAPAL_ENV=sandbox, live keys must use PESAPAL_ENV=production."
+    end
+
     unless response.success?
-      raise PesapalError, "Pesapal error on #{path} (#{response.status}): #{response.body["message"] || response.body.inspect}"
+      err_body = response.body.is_a?(Hash) ? (response.body["message"] || response.body.inspect) : response.body.to_s.first(500)
+      raise PesapalError, "Pesapal error on #{path} (#{response.status}): #{err_body}"
     end
 
     response.body
