@@ -52,6 +52,10 @@ class PesapalClient
         }
       end
 
+      # Log the full auth response (sans credentials) so failures are diagnosable
+      Rails.logger.info "[PesapalClient#token] status=#{response.status} env=#{@config[:environment]} " \
+                        "base_url=#{Pesapal.base_url} body=#{response.body.inspect}"
+
       if response.status == 302
         location = response.headers["location"] || "(no Location header)"
         raise PesapalError,
@@ -62,8 +66,9 @@ class PesapalClient
 
       body = response.body
       unless response.success? && body.is_a?(Hash) && body["token"].present?
-        err_msg = body.is_a?(Hash) ? (body["message"] || body.dig("error", "message") || body.inspect) : response.body.to_s
-        raise PesapalError, "Auth failed (#{response.status}): #{err_msg}"
+        # Dump the entire body — Pesapal returns 200 even for bad credentials,
+        # and the error can be in "error", "message", "status", or other fields.
+        raise PesapalError, "Auth failed (#{response.status}): #{body.inspect}"
       end
 
       body["token"]
