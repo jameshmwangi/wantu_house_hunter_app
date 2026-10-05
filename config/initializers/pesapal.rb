@@ -43,11 +43,23 @@ module Pesapal
       secret.present? &&
       !secret.start_with?("your_")
   end
+
+  def self.sanitize_val(val)
+    return nil if val.blank?
+    val.to_s.strip.gsub(/\A["']+|["']+\z/, "").strip
+  end
+
+  def self.mask_val(val)
+    str = val.to_s
+    return "(empty)" if str.blank?
+    return "(len=#{str.length})" if str.length < 8
+    "#{str[0..3]}...#{str[-4..-1]} (len=#{str.length})"
+  end
 end
 
 Rails.application.config.pesapal = {
-  environment:     ENV.fetch("PESAPAL_ENV", "sandbox"),
-  consumer_key:    ENV["PESAPAL_CONSUMER_KEY"],
-  consumer_secret: ENV["PESAPAL_CONSUMER_SECRET"],
-  ipn_id:          ENV["PESAPAL_IPN_ID"]
+  environment:     Pesapal.sanitize_val(ENV.fetch("PESAPAL_ENV", "sandbox")),
+  consumer_key:    Pesapal.sanitize_val(ENV["PESAPAL_CONSUMER_KEY"]),
+  consumer_secret: Pesapal.sanitize_val(ENV["PESAPAL_CONSUMER_SECRET"]),
+  ipn_id:          Pesapal.sanitize_val(ENV["PESAPAL_IPN_ID"])
 }

@@ -52,9 +52,12 @@ class PesapalClient
         }
       end
 
-      # Log the full auth response (sans credentials) so failures are diagnosable
+      key_mask    = Pesapal.mask_val(@config[:consumer_key])
+      secret_mask = Pesapal.mask_val(@config[:consumer_secret])
+
+      # Log the full auth response with credential fingerprints so mismatches are diagnosable
       Rails.logger.info "[PesapalClient#token] status=#{response.status} env=#{@config[:environment]} " \
-                        "base_url=#{Pesapal.base_url} body=#{response.body.inspect}"
+                        "base_url=#{Pesapal.base_url} key=#{key_mask} secret=#{secret_mask} body=#{response.body.inspect}"
 
       if response.status == 302
         location = response.headers["location"] || "(no Location header)"
@@ -68,7 +71,7 @@ class PesapalClient
       unless response.success? && body.is_a?(Hash) && body["token"].present?
         # Dump the entire body — Pesapal returns 200 even for bad credentials,
         # and the error can be in "error", "message", "status", or other fields.
-        raise PesapalError, "Auth failed (#{response.status}): #{body.inspect}"
+        raise PesapalError, "Auth failed (#{response.status}) [key=#{key_mask} secret=#{secret_mask}]: #{body.inspect}"
       end
 
       body["token"]
