@@ -1,6 +1,7 @@
 class User < ApplicationRecord
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable
+         :recoverable, :rememberable, :validatable,
+         :omniauthable, omniauth_providers: %i[google_oauth2]
 
   ROLES = %w[home_seeker agent landlord admin].freeze
 
@@ -85,6 +86,36 @@ class User < ApplicationRecord
     scope = LedgerEntry.joins(:escrow_transaction)
                        .where(escrow_transactions: { agent_id: id }, account: "agent_payable", currency: currency)
     scope.where(entry_type: "credit").sum(:amount_cents) - scope.where(entry_type: "debit").sum(:amount_cents)
+  end
+
+  # ──────────────────────────────────────────────────────────────
+  # OmniAuth helpers
+  # ──────────────────────────────────────────────────────────────
+
+  # Generates a unique string used as uid for password-based sign-ups
+  # (so the unique index on [uid, provider] doesn't block them).
+  def self.create_unique_string
+    SecureRandom.uuid
+  end
+
+  # Finds an existing user by email or creates a new one from Google's
+  # auth payload.  The user is returned whether or not save succeeded;
+  # callers should check `user.persisted?`.
+  def self.find_for_google(auth)
+    user = User.find_by(email: auth.info.email)
+
+    unless user
+      user = User.new(
+        email:     auth.info.email,
+        full_name: auth.info.name.presence || auth.info.email.split("@").first,
+        provider:  auth.provider,
+        uid:       auth.uid,
+        password:  Devise.friendly_token
+      )
+    end
+
+    user.save
+    user
   end
 
   private

@@ -8,7 +8,10 @@ Rails.application.routes.draw do
   end
 
   # Auth
-  devise_for :users, controllers: { registrations: 'users/registrations' }
+  devise_for :users, controllers: {
+    registrations:      "users/registrations",
+    omniauth_callbacks: "users/omniauth_callbacks"
+  }
 
   # Guest login (evaluator access — signs in a pre-seeded user without credentials)
   post 'guest_login', to: 'guest_sessions#create', as: :guest_login
