@@ -45,7 +45,8 @@ Rails.application.configure do
   # Devise mailer default URL
   config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
 
-  config.active_job.queue_adapter = :sidekiq
+  # Use in-process thread pool — no Redis/Sidekiq dependency needed
+  config.active_job.queue_adapter = :async
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

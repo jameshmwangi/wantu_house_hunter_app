@@ -29,6 +29,7 @@ h2 { font-size: 2rem; font-weight: 600; }
 .wantu-btn--white:hover { background: var(--bg-light); color: var(--primary-dark); }
 .wantu-btn--blue { background: var(--color-accent-blue); color: var(--white); padding: 12px 28px; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem; }
 .wantu-btn--blue:hover { background: var(--color-accent-blue-dark); color: var(--white); }
+.wantu-btn--sm { padding: 6px 14px; font-size: 0.8rem; border-radius: 6px; }
 
 /* Bootstrap overrides */
 .btn-primary {
@@ -85,6 +86,14 @@ h2 { font-size: 2rem; font-weight: 600; }
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
+
+  .navbar-toggler-icon {
+    /* Override Bootstrap's white icon with a dark one for contrast */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    width: 1.5em;
+    height: 1.5em;
+    display: inline-block;
+  }
 }
 
 .wantu-navbar__links {
@@ -670,22 +679,73 @@ h2 { font-size: 2rem; font-weight: 600; }
   &.active { opacity: 1; border-color: #fff; }
 }
 
+/* Price & Viewing Fee */
+.wantu-property-detail__pricing {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.wantu-price-tag {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.wantu-price-tag__amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  letter-spacing: -0.5px;
+}
+.wantu-price-tag__period {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text-light);
+}
+.wantu-viewing-fee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 8px;
+  padding: 6px 14px;
+}
+.wantu-viewing-fee__label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6d4c00;
+}
+.wantu-viewing-fee__amount {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #e65100;
+}
+.wantu-viewing-fee--free {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+}
+.wantu-viewing-fee--free .wantu-viewing-fee__label {
+  color: #2e7d32;
+}
+.wantu-viewing-fee--free .wantu-viewing-fee__amount {
+  color: #1b5e20;
+}
+
 /* Action row */
 .wantu-property-detail__action-row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-4);
   margin-bottom: var(--space-6);
 }
 .wantu-property-detail__action-row .wantu-btn--primary {
-  flex: 1;
-  max-width: 220px;
-  padding: 10px 20px;
+  padding: 10px 28px;
 }
 .wantu-property-detail__action-row .wantu-btn--outline {
-  flex: 1;
-  max-width: 220px;
+  flex: 0 0 auto;
 }
 .wantu-btn-fav--active {
   color: var(--color-accent-red);
@@ -893,6 +953,7 @@ h2 { font-size: 2rem; font-weight: 600; }
 }
 
 @media (max-width: 767px) {
+  .wantu-property-detail__pricing { flex-direction: column; gap: var(--space-2); }
   .wantu-property-detail__action-row { flex-wrap: wrap; }
   .wantu-gallery__thumbnails { grid-template-columns: repeat(2, 1fr); }
 }
@@ -1047,7 +1108,8 @@ h2 { font-size: 2rem; font-weight: 600; }
   }
 }
 
-// Hide Bootstrap hamburger collapse on mobile when bottom nav is active
+// On small mobile (≤767px): hide hamburger collapse since bottom-nav + top-tab-strip handle navigation.
+// The bottom-nav already handles logged-out state with a Login tab.
 @media (max-width: 767px) {
   .wantu-navbar__toggle {
     display: none !important;
@@ -1055,6 +1117,20 @@ h2 { font-size: 2rem; font-weight: 600; }
   .navbar-collapse,
   #mainNav {
     display: none !important;
+  }
+
+  // Show compact auth actions inline in the navbar for logged-out users
+  .wantu-navbar__mobile-auth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 768px) {
+  .wantu-navbar__mobile-auth {
+    display: none;
   }
 }
 

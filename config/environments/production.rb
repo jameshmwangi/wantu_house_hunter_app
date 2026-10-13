@@ -60,8 +60,8 @@ Rails.application.configure do
   # Use a different cache store in production.
   # config.cache_store = :mem_cache_store
 
-  # Use Sidekiq for background jobs in production
-  config.active_job.queue_adapter = :sidekiq
+  # Use in-process thread pool — no Redis/Sidekiq dependency needed
+  config.active_job.queue_adapter = :async
 
   config.action_mailer.perform_caching = false
 

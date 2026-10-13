@@ -6,13 +6,21 @@
       <span class="wantu-logo__text"><%= t('app.name') %></span>
     <% end %>
 
-    <%# Mobile toggle %>
+    <%# Mobile toggle (tablet 768–991px only, hidden on small mobile by CSS) %>
     <button class="wantu-navbar__toggle" type="button"
             data-bs-toggle="collapse" data-bs-target="#mainNav"
             aria-controls="mainNav" aria-expanded="false"
             aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
+
+    <%# Mobile-only auth actions (small screens ≤767px) %>
+    <% unless user_signed_in? %>
+      <div class="wantu-navbar__mobile-auth">
+        <%= link_to t('nav.login'), new_user_session_path, class: "wantu-btn wantu-btn--sm wantu-btn--outline" %>
+        <%= link_to t('nav.list_place'), new_user_session_path(redirect_to: new_dashboard_listing_path), class: "wantu-btn wantu-btn--sm wantu-btn--blue" %>
+      </div>
+    <% end %>
 
     <%# Nav links %>
     <div class="collapse navbar-collapse" id="mainNav">

@@ -67,14 +67,30 @@
     <% end %>
   </div>
 
+  <!-- Price & Viewing Fee -->
+  <div class="wantu-property-detail__pricing">
+    <div class="wantu-price-tag">
+      <span class="wantu-price-tag__amount">Ksh <%= number_with_delimiter(@listing.price) %></span>
+      <span class="wantu-price-tag__period">/ <%= @listing.price_period %></span>
+    </div>
+    <% if @listing.viewing_fee.present? && @listing.viewing_fee > 0 %>
+      <div class="wantu-viewing-fee">
+        <span class="wantu-viewing-fee__label">Viewing Fee:</span>
+        <span class="wantu-viewing-fee__amount">Ksh <%= number_with_delimiter(@listing.viewing_fee) %></span>
+      </div>
+    <% else %>
+      <div class="wantu-viewing-fee wantu-viewing-fee--free">
+        <span class="wantu-viewing-fee__label">Viewing Fee:</span>
+        <span class="wantu-viewing-fee__amount">Free</span>
+      </div>
+    <% end %>
+  </div>
+
   <!-- Action Buttons Row -->
   <div class="wantu-property-detail__action-row">
-    <span class="wantu-btn wantu-btn--primary">
-      Ksh <%= number_with_delimiter(@listing.price) %> / <%= @listing.price_period %>
-    </span>
-    <%= link_to t('listings.show.schedule_visit'),
+    <%= link_to t('listings.show.book_viewing'),
         new_listing_viewing_appointment_path(@listing),
-        class: "wantu-btn wantu-btn--outline" %>
+        class: "wantu-btn wantu-btn--primary" %>
     <button type="button" class="wantu-btn wantu-btn--outline" onclick="navigator.share && navigator.share({title: '<%= j @listing.title %>', url: window.location.href})">
       <%= t('listings.show.share') %>
     </button>
@@ -175,9 +191,9 @@
             </p>
           </div>
         </div>
-        <%= link_to t('listings.show.schedule_visit'),
+        <%= link_to t('listings.show.book_viewing'),
             new_listing_viewing_appointment_path(@listing),
-            class: "wantu-btn wantu-btn--outline wantu-btn--block" %>
+            class: "wantu-btn wantu-btn--primary wantu-btn--block" %>
       </div>
     </div>
 
