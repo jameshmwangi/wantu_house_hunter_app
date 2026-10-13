@@ -14,9 +14,9 @@
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <%# Mobile-only auth actions (small screens ≤767px) %>
+    <%# Mobile-only auth actions (small screens <768px only) %>
     <% unless user_signed_in? %>
-      <div class="wantu-navbar__mobile-auth">
+      <div class="wantu-navbar__mobile-auth d-flex d-md-none align-items-center gap-2 ms-auto">
         <%= link_to t('nav.login'), new_user_session_path, class: "wantu-btn wantu-btn--sm wantu-btn--outline" %>
         <%= link_to t('nav.list_place'), new_user_session_path(redirect_to: new_dashboard_listing_path), class: "wantu-btn wantu-btn--sm wantu-btn--blue" %>
       </div>
