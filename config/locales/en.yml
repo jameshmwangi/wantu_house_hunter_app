@@ -330,15 +330,6 @@ en:
     landlord: "Landlord"
     admin: "Admin"
 
-  guest_login:
-    heading: "Just evaluating Wantu?"
-    subheading: "Skip the signup and explore as a guest:"
-    as_home_seeker: "Guest Home Seeker Login"
-    as_agent: "Guest Agent Login"
-    as_admin: "Guest Admin Login"
-    signed_in_as: "Signed in as guest %{role}."
-    unavailable: "Guest accounts are not available. Please run db:seed first."
-
 
   errors:
     not_authorized: "You are not authorized to perform that action."

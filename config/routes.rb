@@ -13,9 +13,6 @@ Rails.application.routes.draw do
     omniauth_callbacks: "users/omniauth_callbacks"
   }
 
-  # Guest login (evaluator access — signs in a pre-seeded user without credentials)
-  post 'guest_login', to: 'guest_sessions#create', as: :guest_login
-
   # Admin — rails_admin (authenticated, admin-only)
   authenticate :user, ->(u) { u.admin? } do
     mount RailsAdmin::Engine => '/admin', as: 'rails_admin'
